@@ -53,6 +53,8 @@ function toGeminiSchema(value: unknown): unknown {
   const schema = value as Record<string, unknown>;
   const normalized: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(schema)) {
+    // Gemini's generationConfig.responseSchema does not accept this JSON Schema field.
+    if (key === "additionalProperties") continue;
     if (key === "propertyOrdering" && Array.isArray(entry)) {
       normalized[key] = entry;
       continue;
