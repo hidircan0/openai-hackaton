@@ -28,12 +28,12 @@ const schema = strictObject({
   }) },
 });
 
-export async function detectRoom(photo: File, profile: string): Promise<Detection> {
+export async function detectRoom(photo: File, profile: string, timeoutMs = 60_000): Promise<Detection> {
   const dataUrl = `data:${photo.type};base64,${Buffer.from(await photo.arrayBuffer()).toString("base64")}`;
   const output = await requestStructuredJson<Detection>({
     name: "room_detection",
     schema,
-    timeoutMs: 32_000,
+    timeoutMs,
     instructions: buildDetectRoomInstructions(profile),
     input: [{ role: "user", content: [
       { type: "input_text", text: DETECT_ROOM_USER_TEXT },
@@ -43,7 +43,8 @@ export async function detectRoom(photo: File, profile: string): Promise<Detectio
   const { widthCm, depthCm, heightCm } = output.room.dimensions;
   if (![widthCm, depthCm, heightCm].every((value) => Number.isFinite(value) && value > 0)) throw new Error("Fotoğraftan oda ölçüleri çıkarılamadı; daha geniş açıdan yeni fotoğraf deneyin.");
   if (output.items.length === 0) throw new Error("Fotoğrafta analiz edilebilir eşya bulunamadı.");
-  if (output.items.length > 25 || new Set(output.items.map((item) => item.id)).size !== output.items.length) throw new Error("Algılanan eşya listesi 25 öğeyi aşamaz ve kimlikler benzersiz olmalıdır.");
+  // Tekrarlanan kimlikler analyze-room.ts'de sıra ekiyle düzeltilir.
+  if (output.items.length > 25) throw new Error("Algılanan eşya listesi 25 öğeyi aşamaz; daha dar açılı bir fotoğraf deneyin.");
   const items = output.items.map((item) => {
     const f = item.before.footprint;
     const height = item.before.topZ - item.before.bottomZ;
@@ -59,11 +60,11 @@ const commentarySchema = strictObject({
   riskComments: { type: "array", items: strictObject({ itemId: text, reason: text, recommendedAction: text }) },
 });
 
-export async function writeCommentary(profile: string, calculated: Record<string, unknown>): Promise<Commentary> {
+export async function writeCommentary(profile: string, calculated: Record<string, unknown>, timeoutMs = 18_000): Promise<Commentary> {
   return requestStructuredJson<Commentary>({
     name: "room_commentary",
     schema: commentarySchema,
-    timeoutMs: 18_000,
+    timeoutMs,
     instructions: "Türkçe, kısa ve anlaşılır gerekçe/önlem yaz. Yalnızca verilen riskleri açıkla. Skor ve tüm sayısal hesaplar sabittir; yeni sayı, skor veya risk ekleme, hiçbir sayısal değeri değiştirme. Fotoğrafta görünmeyen bilgiyi uydurma. İSG profili profesyonel, ev/okul profili sade dille yazılsın.",
     input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify({ profile, ...calculated }) }] }],
   });

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { analyzeRoom, SimulationRequestError } from "../../../ai/analyze-room";
-import { OpenAIConfigurationError, OpenAIRequestError } from "../../../ai/openai";
+import { OpenAIConfigurationError, OpenAIRequestError, OpenAITimeoutError } from "../../../ai/openai";
 import { SimulationConfigurationError } from "../../../simulation/service-url";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Fotoğraf analizi 60 sn, simülasyon ve yorum kalan sürede çalışır (ai/analyze-room.ts bütçesi 110 sn).
+export const maxDuration = 120;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -23,6 +24,10 @@ export async function POST(request: Request) {
     return NextResponse.json(await analyzeRoom(photo, profile, intensity, durationSeconds));
   } catch (error) {
     if (error instanceof OpenAIConfigurationError) return NextResponse.json({ error: "Sunucuda OPENAI_API_KEY tanımlı değil. Vercel ortam değişkenlerini veya .env.local dosyasını kontrol edin." }, { status: 503 });
+    if (error instanceof OpenAITimeoutError) {
+      console.error("OpenAI zaman aşımı:", error.message);
+      return NextResponse.json({ error: `Fotoğraf analizi zaman aşımına uğradı: ${error.message} Daha küçük bir fotoğrafla (ör. 1600 piksel genişlik) tekrar deneyin.` }, { status: 504 });
+    }
     if (error instanceof OpenAIRequestError) {
       console.error("OpenAI analiz çağrısı başarısız:", error.message);
       return NextResponse.json({ error: "OpenAI fotoğrafı analiz edemedi. API anahtarını, model erişimini ve kota durumunu kontrol edip tekrar deneyin." }, { status: 502 });
