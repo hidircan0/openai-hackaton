@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyzeRoom, SimulationConfigurationError, SimulationRequestError } from "../../../ai/analyze-room";
-import { OpenAIConfigurationError, OpenAIRequestError } from "../../../ai/openai";
+import { GeminiConfigurationError, GeminiRequestError } from "../../../ai/gemini";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,10 +21,10 @@ export async function POST(request: Request) {
   try {
     return NextResponse.json(await analyzeRoom(photo, profile, intensity, durationSeconds));
   } catch (error) {
-    if (error instanceof OpenAIConfigurationError) return NextResponse.json({ error: "Sunucuda OPENAI_API_KEY tanımlı değil. Vercel ortam değişkenlerini veya .env.local dosyasını kontrol edin." }, { status: 503 });
-    if (error instanceof OpenAIRequestError) {
-      console.error("OpenAI analiz çağrısı başarısız:", error instanceof Error ? error.message : error);
-      return NextResponse.json({ error: "OpenAI fotoğrafı analiz edemedi. API anahtarını, model erişimini ve kota durumunu kontrol edip tekrar deneyin." }, { status: 502 });
+    if (error instanceof GeminiConfigurationError) return NextResponse.json({ error: "Sunucuda GEMINI_API_KEY tanımlı değil. Vercel ortam değişkenlerini veya .env.local dosyasını kontrol edin." }, { status: 503 });
+    if (error instanceof GeminiRequestError) {
+      console.error("Gemini analiz çağrısı başarısız:", error.message);
+      return NextResponse.json({ error: "Gemini fotoğrafı analiz edemedi. API anahtarını, model erişimini ve kota durumunu kontrol edip tekrar deneyin." }, { status: 502 });
     }
     if (error instanceof SimulationConfigurationError) return NextResponse.json({ error: "Sunucuda SIMULATION_SERVICE_URL tanımlı değil. PyBullet servisini dağıtıp bu adresi ekleyin." }, { status: 503 });
     if (error instanceof SimulationRequestError) {

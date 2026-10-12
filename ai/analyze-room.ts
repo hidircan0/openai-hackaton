@@ -128,6 +128,6 @@ export async function analyzeRoom(photo: File, profile: string, intensity: numbe
       const generated = commentary.riskComments.find((entry) => entry.itemId === risk.itemId);
       return generated ? { ...risk, reason: generated.reason, recommendedAction: generated.recommendedAction } : risk;
     });
-  } catch (error) { console.error("OpenAI yorum üretimi başarısız:", error); }
+  } catch (error) { console.error("Gemini yorum üretimi başarısız:", error); }
   return analysis;
 }
