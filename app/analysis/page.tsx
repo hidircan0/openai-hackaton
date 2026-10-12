@@ -178,41 +178,84 @@ export default function AnalysisPage() {
 
       const response = await fetch("/api/analyze", { method: "POST", body: data });
 
-      if (!response.ok) throw new Error(`Analiz servisi yanıt vermedi (${response.status}).`);
+      if (!response.ok) {
+        const errorBody: unknown = await response.json().catch(() => null);
+        const apiMessage = errorBody && typeof errorBody === "object" && "error" in errorBody && typeof errorBody.error === "string"
+          ? errorBody.error
+          : `Analiz servisi yanıt vermedi (${response.status}).`;
+        throw new Error(apiMessage);
+      }
 
       const result: unknown = await response.json();
 
-      if (!result || typeof result !== "object" || !("odaSkoru" in result) || !("riskler" in result)) {
-
+      if (!result || typeof result !== "object" || !("safetyScore" in result) || !("risks" in result)) {
         throw new Error("API yanıt biçimi beklenen yapıyla eşleşmiyor.");
-
       }
 
-      const payload = result as { odaSkoru: unknown; riskler: unknown; yorum?: unknown; sorular?: unknown; belirsizSorular?: unknown };
+      const payload = result as {
+        safetyScore: unknown;
+        risks: unknown;
+        commentary?: unknown;
+        sorular?: unknown;
+        belirsizSorular?: unknown;
+      };
 
-      if (typeof payload.odaSkoru !== "number" || !Number.isFinite(payload.odaSkoru) || payload.odaSkoru < 0 || payload.odaSkoru > 100 || !Array.isArray(payload.riskler)) {
-
+      if (
+        typeof payload.safetyScore !== "number" ||
+        !Number.isFinite(payload.safetyScore) ||
+        payload.safetyScore < 0 ||
+        payload.safetyScore > 100 ||
+        !Array.isArray(payload.risks)
+      ) {
         throw new Error("Skor veya risk listesi geçersiz.");
-
       }
 
-      const validRisks = payload.riskler.every((risk: unknown) => {
-
+      const validRisks = payload.risks.every((risk: unknown) => {
         if (!risk || typeof risk !== "object") return false;
-
         const r = risk as Record<string, unknown>;
-
-        return typeof r.id === "string" && typeof r.tehlike === "string" && typeof r.gerekce === "string" && typeof r.onlem === "string" && typeof r.olasilik === "number" && typeof r.siddet === "number" && typeof r.skor === "number" && typeof r.seviye === "string";
-
+        return typeof r.id === "string" &&
+          typeof r.hazard === "string" &&
+          typeof r.reason === "string" &&
+          typeof r.recommendedAction === "string" &&
+          typeof r.likelihood === "number" &&
+          typeof r.severity === "number" &&
+          typeof r.riskScore === "number" &&
+          typeof r.levelLabel === "string";
       });
 
       if (!validRisks) throw new Error("API risk alanları beklenen biçimde değil.");
 
-      setRisks((payload.riskler as Risk[]).map((risk) => ({ ...risk, onay: "bekliyor" })));
+      const backendRisks = payload.risks as Array<{
+        id: string;
+        hazard: string;
+        reason: string;
+        recommendedAction: string;
+        likelihood: number;
+        severity: number;
+        riskScore: number;
+        levelLabel: string;
+      }>;
 
-      setScore(payload.odaSkoru);
-
-      setCommentary(typeof payload.yorum === "string" ? payload.yorum : "");
+      setRisks(backendRisks.map((risk): Risk => ({
+        id: risk.id,
+        tehlike: risk.hazard,
+        gerekce: risk.reason,
+        onlem: risk.recommendedAction,
+        olasilik: risk.likelihood,
+        siddet: risk.severity,
+        skor: risk.riskScore,
+        seviye: risk.levelLabel,
+        onay: "bekliyor",
+      })));
+      setScore(payload.safetyScore);
+      const backendCommentary = payload.commentary;
+      setCommentary(
+        backendCommentary && typeof backendCommentary === "object" &&
+        "roomComment" in backendCommentary &&
+        typeof backendCommentary.roomComment === "string"
+          ? backendCommentary.roomComment
+          : ""
+      );
 
       // Optional API contract: sorular (or belirsizSorular) is an array of
 
