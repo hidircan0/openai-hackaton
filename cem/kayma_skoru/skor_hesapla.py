@@ -16,7 +16,7 @@ def skor_hesapla(veri):
 
     Args:
         veri: ``data_omer_oku`` çıktısı (``oda_boyutlari``, ``esyalar``,
-            ``bolgeler``, ``alfa``).
+            ``yukler``, ``bolgeler``, ``kacis_cezalari``, ``alfa``).
 
     Returns:
         Ömer'in JSON'uyla aynı adlarda sözlük: ``rawSafetyScore``,
@@ -35,8 +35,13 @@ def skor_hesapla(veri):
     agirliklar = agirlik_hesapla([esya["hacim"] for esya in esyalar])
     kayma_indeksi = kayma_indeksi_hesapla(agirliklar, kaymalar)
     kayma_cezasi = kayma_cezasi_hesapla(kayma_indeksi, veri["alfa"])
-    carpmalar = carpma_cezalarini_hesapla(esyalar, veri["bolgeler"])
-    carpma_cezasi = carpma_cezasi_topla([carpma["puan"] for carpma in carpmalar])
+    carpmalar = carpma_cezalarini_hesapla(esyalar + veri["yukler"], veri["bolgeler"])
+    # Bölge cezalarını biz hesaplarız; kaçış (R4) cezası Ömer'in genişlik kontrolünden gelir.
+    etkiler = [
+        {"zone": carpma["bolge"], "itemId": carpma["esya_id"], "points": carpma["puan"]}
+        for carpma in carpmalar
+    ] + veri["kacis_cezalari"]
+    carpma_cezasi = carpma_cezasi_topla([etki["points"] for etki in etkiler])
     ham_oda_skoru = oda_skoru_hesapla(kayma_cezasi, carpma_cezasi)
 
     return {
@@ -61,10 +66,7 @@ def skor_hesapla(veri):
             "alpha": veri["alfa"],
             "slidingIndex": kayma_indeksi,
             "sliding": kayma_cezasi,
-            "impacts": [
-                {"zone": carpma["bolge_id"], "itemId": carpma["esya_id"], "points": carpma["puan"]}
-                for carpma in carpmalar
-            ],
+            "impacts": etkiler,
             "total": kayma_cezasi + carpma_cezasi,
         },
     }

@@ -1,18 +1,20 @@
-"""Bir eşyanın çarpma bilgisini (impact) okur."""
+"""Bir eşyanın ya da yükün çarpma bilgisini (impact) okur."""
+
+from .kacis_cezasi_oku import KACIS_BOLGESI
 
 
 def carpma_oku(carpma, etiket, bolgeler):
-    """``{hit, hitZones}`` alanını doğrular ve çarpılan bölge id'lerini döndürür.
+    """``{hit, hitZones}`` alanını doğrular ve çarpılan bölge tiplerini döndürür.
 
     ``multiplier`` okunmaz; çarpanı ``carpan_hesapla`` hesaplar.
 
     Args:
-        carpma: Eşyanın ``impact`` alanı.
+        carpma: Eşyanın ya da yükün ``impact`` alanı.
         etiket: Hata mesajlarında eşyayı gösteren metin.
-        bolgeler: ``bolgeleri_oku`` çıktısı; hitZones içindeki id'ler burada olmalı.
+        bolgeler: ``bolgeleri_oku`` çıktısı; hitZones içindeki tipler burada olmalı.
 
     Returns:
-        Çarpılan bölge id'lerinin listesi; eşya çarpmadıysa boş liste.
+        Çarpılan bölge tiplerinin listesi; çarpmadıysa boş liste.
     """
     if not isinstance(carpma, dict):
         raise ValueError(f"{etiket} impact bir sözlük olmalı: {{hit, hitZones}}.")
@@ -36,7 +38,9 @@ def carpma_oku(carpma, etiket, bolgeler):
 
     if not degdigi_bolgeler:
         raise ValueError(f"{etiket} impact.hit true ama hitZones boş.")
-    for bolge_id in degdigi_bolgeler:
-        if not isinstance(bolge_id, str) or bolge_id not in bolgeler:
-            raise ValueError(f"{etiket} impact.hitZones içindeki {bolge_id!r} criticalZones içinde yok.")
+    for bolge in degdigi_bolgeler:
+        if bolge == KACIS_BOLGESI:
+            raise ValueError(f"{etiket} impact.hitZones içinde 'exit' olamaz; kaçış cezası R4 kaydından gelir.")
+        if not isinstance(bolge, str) or bolge not in bolgeler:
+            raise ValueError(f"{etiket} impact.hitZones içindeki {bolge!r} criticalZones tiplerinde yok.")
     return list(dict.fromkeys(degdigi_bolgeler))

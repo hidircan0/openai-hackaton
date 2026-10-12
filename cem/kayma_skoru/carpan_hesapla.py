@@ -5,6 +5,8 @@ from .esya_tipleri import CAM_TIPLERI
 # (alt sınır cm, çarpan): yükseklik alt sınıra eşit ya da büyükse o çarpan geçerli.
 YUKSEKLIK_CARPANLARI = ((180.0, 1.0), (120.0, 0.7), (0.0, 0.4))
 CAM_KATSAYISI = 1.3
+# Eşyanın üstünden düşen yükün (loads) çarpanı; Ömer'in planındaki öneri.
+YUK_CARPANI = 0.4
 
 
 def carpan_hesapla(yukseklik, tip):

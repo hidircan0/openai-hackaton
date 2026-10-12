@@ -46,7 +46,7 @@
       "confidence": 0.91,
       "triggeredRules": ["R1"],
       "displacement": { "d": 0.277, "volumeWeight": 0.2341 },
-      "impact": { "hit": true, "multiplier": 1.0, "hitZones": ["bed-zone-1"] }
+      "impact": { "hit": true, "multiplier": 1.0, "hitZones": ["bed"] }
     },
     {
       "id": "bed-1",
@@ -100,7 +100,7 @@
       "confidence": 0.76,
       "triggeredRules": ["R3"],
       "displacement": { "d": 0.2232, "volumeWeight": 0.0037 },
-      "impact": { "hit": true, "multiplier": 0.52, "hitZones": ["bed-zone-1"] }
+      "impact": { "hit": true, "multiplier": 0.52, "hitZones": ["bed"] }
     },
     {
       "id": "wardrobe-1",
@@ -236,9 +236,10 @@
     "sliding": 13.13,
     "impacts": [
       {
-        "zone": "bed-zone-1",
+        "zone": "bed",
         "itemId": "bookcase-1",
-        "points": 25
+        "points": 25,
+        "rule": "R1"
       }
     ],
     "total": 38.13
@@ -253,5 +254,5 @@
     "4": "High",
     "5": "Intolerable"
   },
-  "note": "Example API response for the acceptance test room. All numbers except reason, recommendedAction and commentary are computed by code; those three are written by the AI and must not change any number. safetyScore is rawSafetyScore rounded. fallDirection.axis is used for coordinate calculations. Every item has before and after; for an item that does not move, after = before. displacement.d is the normalized 0-1 displacement of each item (null for items excluded from sliding: bed, door, cable, extinguisher). Every item has impact: hit says whether the item's fall footprint touches any critical zone, hitZones lists the ids of those zones (criticalZones[].id) and multiplier is the item's impact multiplier, computed by code (cem/kayma_skoru/carpan_hesapla.py: height >= 180 cm -> 1.0, 120-180 -> 0.7, < 120 -> 0.4, x 1.3 for mirror / glass), so the request only needs hit and hitZones; when hit is false, multiplier is null and hitZones is empty. penalties.impacts is computed from impact and criticalZones: each zone is penalized at most once, by the item with the largest multiplier, points = penaltyPoints x multiplier. Risk level is 1-5; riskScore is likelihood x severity (1-25). Item type names must exactly match cem/kayma_skoru/esya_tipleri.py."
+  "note": "Example API response for the acceptance test room. All numbers except reason, recommendedAction and commentary are computed by code; those three are written by the AI and must not change any number. safetyScore is rawSafetyScore rounded. fallDirection.axis is used for coordinate calculations. Every item has before and after; for an item that does not move, after = before. displacement.d is the normalized 0-1 displacement of each item (null for items excluded from sliding: bed, door, cable, extinguisher). Every item has impact: hit says whether the item's fall footprint touches any critical zone, hitZones lists the types of those zones (criticalZones[].type: bed, work_area; never exit) and multiplier is the item's impact multiplier, computed by code (cem/kayma_skoru/carpan_hesapla.py: height >= 180 cm -> 1.0, 120-180 -> 0.7, < 120 -> 0.4, x 1.3 for mirror / glass), so the request only needs hit and hitZones; when hit is false, multiplier is null and hitZones is empty. penalties.impacts is computed from impact and criticalZones: each zone type is penalized at most once, by the item or falling load (loads[], multiplier 0.4) with the largest multiplier, points = penaltyPoints x multiplier. The exit penalty is not an impact: it comes from the R4 width check and is written to penalties.impacts with zone exit and rule R4. Each penalties.impacts entry has a rule. When after.pose.position is present it is used as the item's center after shaking. Risk level is 1-5; riskScore is likelihood x severity (1-25). Item type names must exactly match cem/kayma_skoru/esya_tipleri.py."
 }

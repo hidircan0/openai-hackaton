@@ -11,6 +11,7 @@ klasöründe ayrı bir dosyadadır:
 5. kayma_cezasi_hesapla   100 × α × K
 6. carpan_hesapla             eşya çarpanı (yükseklik ve cam / ayna tipinden)
    carpma_cezalarini_hesapla  bölge başına ceza = bölge puanı × en büyük çarpan
+                              (eşyalar ve düşen yükler; kaçış cezası Ömer'in R4 kaydından)
    carpma_cezasi_topla        bölge cezalarının toplamı
 7. oda_skoru_hesapla      clamp(100 − kayma − çarpma, 0, 100)
 
@@ -78,26 +79,32 @@ if __name__ == "__main__":
     kayma_cezasi = kayma_cezasi_hesapla(kayma_indeksi, veri["alfa"])
     print(f"5. Kayma cezası (alfa = {veri['alfa']:g}): {kayma_cezasi:.2f}   [{omer_cezalari.get('sliding')}]")
 
-    print("6. Çarpanlar (yükseklik ve tipten; yalnızca çarpan eşyalar)   [Ömer]")
-    omer_esya_carpmalari = {esya["id"]: esya.get("impact") or {} for esya in data_omer["items"]}
-    for esya in esyalar:
-        if esya["carptigi_bolgeler"]:
+    print("6. Çarpanlar (yükseklik ve tipten; yalnızca çarpan eşya ve yükler)   [Ömer]")
+    omer_carpanlari = {
+        kayit["id"]: kayit.get("impact") or {}
+        for kayit in data_omer["items"] + (data_omer.get("loads") or [])
+    }
+    carpanlar = esyalar + veri["yukler"]
+    for carpan in carpanlar:
+        if carpan["carptigi_bolgeler"]:
             print(
-                f"   {esya['id']}: {esya['carpan']:.2f} -> {', '.join(esya['carptigi_bolgeler'])}"
-                f"   [{omer_esya_carpmalari[esya['id']].get('multiplier')}]"
+                f"   {carpan['id']}: {carpan['carpan']:.2f} -> {', '.join(carpan['carptigi_bolgeler'])}"
+                f"   [{omer_carpanlari[carpan['id']].get('multiplier')}]"
             )
+
     print("   Çarpma cezaları (bölge: eşya -> puan)   [Ömer]")
     omer_carpmalari = {carpma.get("zone"): carpma for carpma in omer_cezalari.get("impacts") or []}
-    carpmalar = carpma_cezalarini_hesapla(esyalar, veri["bolgeler"])
-    for carpma in carpmalar:
-        omer = omer_carpmalari.get(carpma["bolge_id"], {})
-        print(
-            f"   {carpma['bolge_id']}: {carpma['esya_id']} -> {carpma['puan']:.2f}"
-            f"   [{omer.get('itemId')} -> {omer.get('points')}]"
-        )
-    if not carpmalar:
+    # Bölge cezalarını biz hesaplarız; kaçış (R4) kaydı Ömer'in genişlik kontrolünden gelir.
+    etkiler = [
+        (carpma["bolge"], carpma["esya_id"], carpma["puan"])
+        for carpma in carpma_cezalarini_hesapla(carpanlar, veri["bolgeler"])
+    ] + [(kacis["zone"], f"{kacis['itemId']} (R4)", kacis["points"]) for kacis in veri["kacis_cezalari"]]
+    for bolge, esya_id, puan in etkiler:
+        omer = omer_carpmalari.get(bolge, {})
+        print(f"   {bolge}: {esya_id} -> {puan:.2f}   [{omer.get('itemId')} -> {omer.get('points')}]")
+    if not etkiler:
         print("   Çarpma yok.")
-    carpma_cezasi = carpma_cezasi_topla([carpma["puan"] for carpma in carpmalar])
+    carpma_cezasi = carpma_cezasi_topla([puan for _, _, puan in etkiler])
     print(f"   Toplam çarpma cezası: {carpma_cezasi:.2f}")
 
     oda_skoru = oda_skoru_hesapla(kayma_cezasi, carpma_cezasi)

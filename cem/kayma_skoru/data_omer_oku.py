@@ -4,29 +4,34 @@ from .alfa_oku import alfa_oku
 from .bolgeleri_oku import bolgeleri_oku
 from .carpan_hesapla import carpan_hesapla
 from .carpma_oku import carpma_oku
+from .kacis_cezasi_oku import kacis_cezasi_oku
 from .kaymaya_girer_mi import kaymaya_girer_mi
 from .kutu_hacmi_hesapla import kutu_hacmi_hesapla
 from .kutu_merkezi_hesapla import kutu_merkezi_hesapla
 from .oda_boyutlari_al import oda_boyutlari_al
 from .omer_kutusu_oku import omer_kutusu_oku
+from .poz_merkezi_oku import poz_merkezi_oku
 from .tip_dogrula import tip_dogrula
+from .yukleri_oku import yukleri_oku
 
 
 def data_omer_oku(data_omer):
-    """Ömer'in yanıtından oda boyutlarını, eşyaları, bölgeleri ve alfayı çıkarır.
+    """Ömer'in yanıtından skor hesabı için gereken her şeyi çıkarır.
 
     Kullanılan alanlar (``omer/ornek-analyze-response.json``; birim cm):
         room.dimensions: widthCm, depthCm, heightCm
-        items[]: id, type, before, after ({footprint, bottomZ, topZ}),
-                 impact ({hit, hitZones}; multiplier okunmaz, biz hesaplarız)
-        criticalZones[]: id, penaltyPoints
-        penalties.alpha
+        items[]: id, type, before, after ({footprint, bottomZ, topZ}, varsa
+                 after.pose.position), impact ({hit, hitZones}; multiplier
+                 okunmaz, biz hesaplarız)
+        loads[] (varsa): id, impact ({hit, hitZones})
+        criticalZones[]: type, penaltyPoints
+        penalties: alpha, impacts[] (yalnızca kaçış / R4 kaydı)
 
     Returns:
-        ``{"oda_boyutlari", "esyalar", "bolgeler", "alfa"}``. Her eşyada ``id``,
-        ``tip``, ``hacim``, ``t0_merkez``, ``t1_merkez``, ``carpan`` ve
-        ``carptigi_bolgeler`` bulunur. Kayma dışı tipler (``esya_tipleri.py``)
-        listeye alınmaz.
+        ``{"oda_boyutlari", "esyalar", "yukler", "bolgeler", "kacis_cezalari", "alfa"}``.
+        Her eşyada ``id``, ``tip``, ``hacim``, ``t0_merkez``, ``t1_merkez``,
+        ``carpan`` ve ``carptigi_bolgeler`` bulunur. Kayma dışı tipler
+        (``esya_tipleri.py``) listeye alınmaz.
     """
     if not isinstance(data_omer, dict):
         raise ValueError("data_omer bir sözlük olmalı: {room, items, criticalZones, penalties, ...}.")
@@ -50,7 +55,7 @@ def data_omer_oku(data_omer):
         if not isinstance(esya, dict):
             raise ValueError(f"{sira}. eşya bir sözlük olmalı.")
 
-        eksik = {"id", "type", "before", "after", "impact"} - esya.keys()
+        eksik = {"id", "type", "before", "after"} - esya.keys()
         if eksik:
             raise ValueError(f"{sira}. eşyada eksik alan(lar) var: {', '.join(sorted(eksik))}.")
 
@@ -60,8 +65,11 @@ def data_omer_oku(data_omer):
 
         etiket = f"'{esya_id}'"
         tip = tip_dogrula(esya["type"], etiket)
+        # Yatak, kapı, kablo ve söndürücüde impact null olabilir; onlar zaten atlanır.
         if not kaymaya_girer_mi(tip):
             continue
+        if "impact" not in esya:
+            raise ValueError(f"{sira}. eşyada eksik alan(lar) var: impact.")
 
         ilk_kutu = omer_kutusu_oku(esya["before"], f"{etiket} before")
         son_kutu = omer_kutusu_oku(esya["after"], f"{etiket} after")
@@ -70,12 +78,15 @@ def data_omer_oku(data_omer):
         if ust_z <= alt_z:
             raise ValueError(f"{etiket} before yüksekliği (topZ - bottomZ) pozitif olmalı.")
 
+        # Fizik modunda gövdenin gerçek merkezi; yoksa (kural modu) kutu merkezi.
+        poz_merkezi = poz_merkezi_oku(esya["after"], etiket)
+
         esyalar.append({
             "id": esya_id,
             "tip": tip,
             "hacim": kutu_hacmi_hesapla(taban, ust_z - alt_z),
             "t0_merkez": kutu_merkezi_hesapla(*ilk_kutu),
-            "t1_merkez": kutu_merkezi_hesapla(*son_kutu),
+            "t1_merkez": poz_merkezi if poz_merkezi is not None else kutu_merkezi_hesapla(*son_kutu),
             "carpan": carpan_hesapla(ust_z - alt_z, tip),
             "carptigi_bolgeler": carpma_oku(esya["impact"], etiket, bolgeler),
         })
@@ -83,9 +94,14 @@ def data_omer_oku(data_omer):
     if not esyalar:
         raise ValueError("Kayma hesabına girecek en az bir eşya olmalı.")
 
+    cezalar = data_omer["penalties"]
+    alfa = alfa_oku(cezalar)
     return {
         "oda_boyutlari": oda_boyutlari,
         "esyalar": esyalar,
+        # loads yalnızca fizik modunda gelir; alan yoksa düşen yük yok demektir.
+        "yukler": yukleri_oku(data_omer.get("loads", []), bolgeler),
         "bolgeler": bolgeler,
-        "alfa": alfa_oku(data_omer["penalties"]),
+        "kacis_cezalari": kacis_cezasi_oku(cezalar.get("impacts")),
+        "alfa": alfa,
     }
