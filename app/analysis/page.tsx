@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import type { AnalyzeResponse } from "../../scene/analyzeResponse";
+
+const AnalizSahnesi = dynamic(() => import("../../scene/AnalizSahnesi").then((module) => module.AnalizSahnesi), { ssr: false });
 
 type Profile = "isg" | "ev" | "okul";
 type Stage = "upload" | "loading" | "results";
@@ -37,10 +41,15 @@ function severityColor(score: number) {
 
 export default function AnalysisPage() {
   const [profile, setProfile] = useState<Profile>("isg");
+  const [intensity, setIntensity] = useState(5);
+  const [durationSeconds, setDurationSeconds] = useState(10);
   const [stage, setStage] = useState<Stage>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [demo, setDemo] = useState(true);
+  const [demo, setDemo] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
+  const [shaking, setShaking] = useState(false);
+  const [sceneMode, setSceneMode] = useState<"3d" | "2d">("3d");
   const [risks, setRisks] = useState<Risk[]>([]);
   const [score, setScore] = useState<number | null>(null);
   const [improvement, setImprovement] = useState(0);
@@ -49,6 +58,8 @@ export default function AnalysisPage() {
   const [fixedImage, setFixedImage] = useState("");
   const [falLoading, setFalLoading] = useState(false);
   const [falError, setFalError] = useState("");
+  const [shakeVideo, setShakeVideo] = useState("");
+  const [shakeLoading, setShakeLoading] = useState(false);
   const [anchored, setAnchored] = useState<"evet" | "hayir" | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -62,7 +73,7 @@ export default function AnalysisPage() {
   }, [file]);
 
   function reset() {
-    setStage("upload"); setRisks([]); setScore(null); setImprovement(0);
+    setStage("upload"); setRisks([]); setScore(null); setImprovement(0); setAnalysis(null); setShakeVideo(""); setShaking(false);
     setCommentary(""); setAnchored(null); setError(""); setEditing(null);
   }
 
@@ -72,6 +83,7 @@ export default function AnalysisPage() {
     if (demo) {
       await new Promise((resolve) => setTimeout(resolve, 1200));
       setRisks(demoRisks.map((risk) => ({ ...risk })));
+      setAnalysis(null);
       setScore(62);
       setCommentary("Bu örnek senaryoda devrilebilecek yüksek mobilyalar ve düşebilecek ağır eşyalar öncelikli risklerdir. Duvara sabitleme ve eşya yerleşimini değiştirme önerilir.");
       setStage("results");
@@ -80,25 +92,20 @@ export default function AnalysisPage() {
     try {
       const data = new FormData();
       data.append("photo", file); data.append("profile", profile);
+      data.append("intensity", String(intensity)); data.append("durationSeconds", String(durationSeconds));
       const response = await fetch("/api/analyze", { method: "POST", body: data });
-      if (!response.ok) throw new Error(`Analiz servisi yanıt vermedi (${response.status}).`);
-      const result: unknown = await response.json();
-      if (!result || typeof result !== "object" || !("odaSkoru" in result) || !("riskler" in result)) {
+      const resultResponse = await response.json() as AnalyzeResponse & { error?: string };
+      if (!response.ok) throw new Error(resultResponse.error ?? `Analiz servisi yanıt vermedi (${response.status}).`);
+      if (!resultResponse || typeof resultResponse !== "object" || !("safetyScore" in resultResponse) || !("risks" in resultResponse) || !("items" in resultResponse)) {
         throw new Error("API yanıt biçimi beklenen yapıyla eşleşmiyor.");
       }
-      const payload = result as { odaSkoru: unknown; riskler: unknown; yorum?: unknown };
-      if (typeof payload.odaSkoru !== "number" || !Number.isFinite(payload.odaSkoru) || payload.odaSkoru < 0 || payload.odaSkoru > 100 || !Array.isArray(payload.riskler)) {
+      if (typeof resultResponse.safetyScore !== "number" || !Number.isFinite(resultResponse.safetyScore) || resultResponse.safetyScore < 0 || resultResponse.safetyScore > 100 || !Array.isArray(resultResponse.risks)) {
         throw new Error("Skor veya risk listesi geçersiz.");
       }
-      const validRisks = payload.riskler.every((risk: unknown) => {
-        if (!risk || typeof risk !== "object") return false;
-        const r = risk as Record<string, unknown>;
-        return typeof r.id === "string" && typeof r.tehlike === "string" && typeof r.gerekce === "string" && typeof r.onlem === "string" && typeof r.olasilik === "number" && typeof r.siddet === "number" && typeof r.skor === "number" && typeof r.seviye === "string";
-      });
-      if (!validRisks) throw new Error("API risk alanları beklenen biçimde değil.");
-      setRisks((payload.riskler as Risk[]).map((risk) => ({ ...risk, onay: "bekliyor" })));
-      setScore(payload.odaSkoru);
-      setCommentary(typeof payload.yorum === "string" ? payload.yorum : "");
+      setAnalysis(resultResponse);
+      setRisks(resultResponse.risks.map((risk) => ({ id: risk.id, tehlike: risk.hazard, gerekce: risk.reason, onlem: risk.recommendedAction, olasilik: risk.likelihood, siddet: risk.severity, skor: risk.riskScore, seviye: risk.levelLabel, onay: "bekliyor" })));
+      setScore(resultResponse.safetyScore);
+      setCommentary(resultResponse.commentary.roomComment);
       setStage("results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analiz başarısız.");
@@ -123,6 +130,21 @@ export default function AnalysisPage() {
     } finally {
       setFalLoading(false);
     }
+  }
+
+  async function createShakeVideo() {
+    if (!file || !analysis || shakeLoading) return;
+    setShakeLoading(true); setFalError(""); setShakeVideo("");
+    try {
+      const form = new FormData();
+      form.set("photo", file);
+      form.set("summary", analysis.items.filter((item) => item.simulationOutcome !== "stationary").map((item) => `${item.type}: ${item.simulationOutcome}; expected final area ${JSON.stringify(item.after.footprint)}`).join("; ") || "loose objects tremble slightly in place");
+      const response = await fetch("/api/fal/shake", { method: "POST", body: form });
+      const result = await response.json() as { videoUrl?: string; error?: string };
+      if (!response.ok || !result.videoUrl) throw new Error(result.error ?? "Video üretilemedi.");
+      setShakeVideo(result.videoUrl);
+    } catch (err) { setFalError(err instanceof Error ? err.message : "Video üretilemedi."); }
+    finally { setShakeLoading(false); }
   }
 
   function approve(id: string) {
@@ -180,6 +202,7 @@ export default function AnalysisPage() {
               <p className="font-mono text-xs tracking-widest text-[#9966CC]">CONFIG / 02</p>
               <h2 className="mt-3 text-2xl font-black">ANALİZ PROFİLİ</h2>
               <div className="mt-7 space-y-3">{profiles.map((item) => <button key={item.id} type="button" onClick={() => setProfile(item.id)} className={`w-full border p-4 text-left transition ${profile === item.id ? "border-[#9966CC] bg-[#2A2140]" : "border-[#2C3444] hover:border-[#636E85]"}`}><div className="flex justify-between gap-3"><span className="text-sm font-bold">{item.name}</span><span className="text-[#9966CC]">{profile === item.id ? "●" : "○"}</span></div><p className="mt-2 text-xs text-[#A7A3B3]">{item.description}</p></button>)}</div>
+              <div className="mt-7 grid grid-cols-2 gap-3"><label className="text-xs text-[#A7A3B3]">SARSINTI ŞİDDETİ<select value={intensity} onChange={(event) => setIntensity(Number(event.target.value))} className="mt-2 w-full border border-[#636E85] bg-[#0B0C10] p-3 text-sm text-[#F2F0F5]">{Array.from({ length: 9 }, (_, i) => i + 1).map((value) => <option key={value} value={value}>{value} / 9</option>)}</select></label><label className="text-xs text-[#A7A3B3]">SİMÜLASYON SÜRESİ<select value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} className="mt-2 w-full border border-[#636E85] bg-[#0B0C10] p-3 text-sm text-[#F2F0F5]">{[5, 10, 15, 20].map((value) => <option key={value} value={value}>{value} saniye</option>)}</select></label></div>
               <label className="mt-7 flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" checked={demo} onChange={(event) => setDemo(event.target.checked)} className="accent-[#9966CC]" />Demo verileriyle çalış</label>
               <p className="mt-2 text-xs leading-5 text-[#A7A3B3]">Demo modu temsili riskler üretir. Kapatıldığında gerçek /api/analyze servisine istek gönderilir.</p>
               {error && <p role="alert" className="mt-5 text-sm text-[#F0676B]">{error}</p>}
@@ -210,8 +233,8 @@ export default function AnalysisPage() {
             <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
               <section className="overflow-hidden border border-[#2C3444] bg-[#151818]">
                 <div className="flex items-center justify-between border-b border-[#2C3444] px-6 py-5"><div><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">SPACE / VISUAL</p><h2 className="mt-2 text-lg font-black">MEKÂN GÖRÜNÜMÜ</h2></div><span className="border border-[#2C3444] px-3 py-2 font-mono text-[10px] text-[#A7A3B3]">FOTOĞRAF</span></div>
-                <div className="flex min-h-[320px] items-center justify-center bg-[#0B0C10] p-4">{preview ? <img src={preview} alt="Analiz edilen mekân fotoğrafı" className="max-h-[430px] w-full object-contain" /> : <p className="text-sm text-[#A7A3B3]">Görüntü bulunamadı.</p>}</div>
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#2C3444] px-6 py-4"><div><p className="font-mono text-[10px] text-[#9966CC]">ANALYSIS PROFILE</p><p className="mt-1 text-sm font-bold">{profile === "isg" ? "İŞ YERİ" : profile === "ev" ? "EV" : "OKUL"}</p></div><span className="text-xs text-[#A7A3B3]">3D simülasyon entegrasyonu bekleniyor</span></div>
+                <div className="flex min-h-[360px] items-center justify-center bg-[#0B0C10] p-2">{analysis ? <AnalizSahnesi analiz={analysis} deprem={shaking} gorunum={sceneMode} className="w-full" /> : preview ? <img src={preview} alt="Analiz edilen mekân fotoğrafı" className="max-h-[430px] w-full object-contain" /> : <p className="text-sm text-[#A7A3B3]">Görüntü bulunamadı.</p>}</div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#2C3444] px-6 py-4"><div><p className="font-mono text-[10px] text-[#9966CC]">ANALYSIS PROFILE</p><p className="mt-1 text-sm font-bold">{profile === "isg" ? "İŞ YERİ" : profile === "ev" ? "EV" : "OKUL"}</p>{analysis && <p className="mt-1 text-[10px] text-[#A7A3B3]">PyBullet · {analysis.simulation.intensity}/9 · {analysis.simulation.durationSeconds} sn</p>}</div>{analysis && <div className="flex gap-2"><button type="button" onClick={() => setSceneMode(sceneMode === "3d" ? "2d" : "3d")} className="border border-[#636E85] px-3 py-2 text-[10px] font-bold">{sceneMode === "3d" ? "2D PLAN" : "3D SAHNE"}</button><button type="button" onClick={() => { setShaking(true); window.setTimeout(() => setShaking(false), analysis.simulation.durationSeconds * 1000 + 500); }} className="bg-[#9966CC] px-3 py-2 text-[10px] font-black text-[#0B0C10]">DEPREMİ GÖSTER ↗</button></div>}</div>
               </section>
               <div className="flex flex-col gap-5">
                 <section className="flex-1 border border-[#2C3444] bg-[#151818] p-6">
@@ -230,10 +253,11 @@ export default function AnalysisPage() {
 
             {preview && <section className="border border-[#2C3444] bg-[#151818] p-5 md:p-8">
               <div className="flex flex-wrap items-end justify-between gap-5">
-                <div><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">FAL.AI / VISUALIZATION</p><h2 className="mt-3 text-2xl font-black">ÖNLEM SONRASI ODA GÖRÜNÜMÜ</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-[#A7A3B3]">Yüklediğiniz fotoğraftan sabitleme önlemlerinin temsili görselini üretin. Bu görsel simülasyon veya güvenlik doğrulaması değildir.</p></div>
-                <button type="button" onClick={createSafetyPreview} disabled={falLoading} className="bg-[#9966CC] px-5 py-4 text-xs font-black text-[#0B0C10] transition hover:bg-[#B28DDB] disabled:cursor-wait disabled:opacity-50">{falLoading ? "GÖRSEL OLUŞTURULUYOR…" : "ÖNLEM GÖRSELİ OLUŞTUR ↗"}</button>
+                <div><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">FAL.AI / VISUALIZATION</p><h2 className="mt-3 text-2xl font-black">SARSINTI GÖRSELİ</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-[#A7A3B3]">Fal.ai, yüklenen fotoğraftan kısa bir sarsıntı videosu üretir. Video temsili görselleştirmedir; oda skoru ve t1 konumları uygulamanın hesaplarından gelir.</p></div>
+                <div className="flex flex-wrap gap-2"><button type="button" onClick={createShakeVideo} disabled={shakeLoading || !analysis} className="bg-[#9966CC] px-5 py-4 text-xs font-black text-[#0B0C10] transition hover:bg-[#B28DDB] disabled:cursor-wait disabled:opacity-50">{shakeLoading ? "VİDEO OLUŞTURULUYOR…" : "SARSINTI VİDEOSU OLUŞTUR ↗"}</button><button type="button" onClick={createSafetyPreview} disabled={falLoading} className="border border-[#636E85] px-5 py-4 text-xs font-bold transition hover:border-[#9966CC] disabled:opacity-50">{falLoading ? "GÖRSEL OLUŞUYOR…" : "ÖNLEM GÖRSELİ"}</button></div>
               </div>
               {falError && <p role="alert" className="mt-4 text-sm text-[#F0676B]">{falError}</p>}
+              {shakeVideo && <figure className="mt-6 overflow-hidden border border-[#2C3444] bg-[#0B0C10]"><video src={shakeVideo} controls playsInline className="max-h-[520px] w-full"/><figcaption className="border-t border-[#2C3444] px-4 py-3 font-mono text-[10px] text-[#A7A3B3]">FAL.AI · TEMSİLİ SARSINTI GÖRSELİ</figcaption></figure>}
               <div className={`mt-6 grid gap-4 ${fixedImage ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
                 <figure className="m-0 overflow-hidden border border-[#2C3444] bg-[#0B0C10]"><img src={preview} alt="Yüklenen oda fotoğrafı" className="max-h-[430px] w-full object-contain"/><figcaption className="border-t border-[#2C3444] px-4 py-3 font-mono text-[10px] text-[#A7A3B3]">ÖNCE · YÜKLENEN FOTOĞRAF</figcaption></figure>
                 {fixedImage && <figure className="m-0 overflow-hidden border border-[#2C3444] bg-[#0B0C10]"><img src={fixedImage} alt="fal.ai ile oluşturulmuş temsili önlem sonrası oda" className="max-h-[430px] w-full object-contain"/><figcaption className="border-t border-[#2C3444] px-4 py-3 font-mono text-[10px] text-[#A7A3B3]">SONRA · TEMSİLİ FAL.AI GÖRSELİ</figcaption></figure>}

@@ -10,5 +10,7 @@ export type Esya = {
   h: number;
   yon: "+x" | "-x" | "+y" | "-y";
   t1?: { taban: Taban; z0: number; z1?: number; h?: number } | null;
+  /** PyBullet samples: time, x/y/z in cm, then quaternion x/y/z/w. */
+  track?: number[][];
 };
 export type Bolge = { id?: string; tip?: "kacis" | "yatak" | "calisma"; tur?: "kacis" | "yatak" | "calisma"; taban: Taban };

@@ -1,6 +1,7 @@
 /** Current POST /api/analyze response shape. Spatial measurements are centimeters. */
 export type AnalyzeResponse = {
   profile: string;
+  simulation: { engine: string; mode: string; intensity: number; pgaG: number; durationSeconds: number; fixedStepHz: number; trackFps: number };
   safetyScore: number;
   rawSafetyScore: number;
   room: {
@@ -22,8 +23,10 @@ export type AnalyzeResponse = {
     fragile: boolean;
     confidence: number;
     triggeredRules: string[];
+    simulationOutcome: "tipped" | "fell" | "slid" | "stationary";
     displacement: { d: number; volumeWeight: number } | null;
-    impact: { multiplier: number; hitZones: string[] } | null;
+    impact: { hit: boolean; multiplier: number | null; hitZones: string[] };
+    track: number[][];
   }>;
   criticalZones: Array<{
     id: string;

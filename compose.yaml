@@ -11,6 +11,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      SIMULATION_SERVICE_URL: http://simulation:8000
+    depends_on:
+      simulation:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test:
@@ -22,3 +26,20 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+  simulation:
+    build:
+      context: .
+      dockerfile: omer/simulation/Dockerfile
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

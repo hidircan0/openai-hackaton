@@ -22,6 +22,7 @@ export function analizSahneModeli(analiz: AnalyzeResponse): {
       z0: e.after.bottomZ,
       h: e.after.topZ - e.after.bottomZ,
     },
+    track: e.track,
   }));
   const bolgeler: Bolge[] = analiz.criticalZones.map((zone) => ({
     id: zone.id,
