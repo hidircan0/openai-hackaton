@@ -30,6 +30,18 @@ type Risk = {
 
 };
 
+type UncertaintyAnswer = "evet" | "hayir" | "bilmiyorum";
+
+type UncertaintyQuestion = {
+  id: string;
+  soru: string;
+  riskId?: string;
+};
+
+const demoQuestions: UncertaintyQuestion[] = [
+  { id: "Q01", riskId: "R01", soru: "Yüksek dolap duvara sabitli mi?" },
+];
+
 const demoRisks: Risk[] = [
 
   { id: "R01", tehlike: "Sabitlenmemiş yüksek dolap", gerekce: "Sarsıntı sırasında devrilme riski bulunabilir.", onlem: "Dolabı uygun bağlantı elemanlarıyla duvara sabitleyin.", olasilik: 4, siddet: 5, skor: 20, seviye: "TOLERE EDİLEMEZ", onay: "bekliyor" },
@@ -126,7 +138,8 @@ export default function AnalysisPage() {
 
   const [error, setError] = useState("");
 
-  const [anchored, setAnchored] = useState<"evet" | "hayir" | null>(null);
+  const [questions, setQuestions] = useState<UncertaintyQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, UncertaintyAnswer>>({});
 
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -150,7 +163,7 @@ export default function AnalysisPage() {
 
     setStage("upload"); setRisks([]); setScore(null); setImprovement(0);
 
-    setCommentary(""); setAnchored(null); setError(""); setEditing(null);
+    setCommentary(""); setQuestions([]); setAnswers({}); setError(""); setEditing(null);
 
   }
 
@@ -158,7 +171,7 @@ export default function AnalysisPage() {
 
     if (!file) { setError("Lütfen önce bir fotoğraf seçin."); return; }
 
-    setError(""); setStage("loading"); setImprovement(0);
+    setError(""); setStage("loading"); setImprovement(0); setQuestions([]); setAnswers({});
 
     if (demo) {
 
@@ -167,6 +180,8 @@ export default function AnalysisPage() {
       setRisks(demoRisks.map((risk) => ({ ...risk })));
 
       setScore(62);
+
+      setQuestions(demoQuestions);
 
       setCommentary("Bu örnek senaryoda devrilebilecek yüksek mobilyalar ve düşebilecek ağır eşyalar öncelikli risklerdir. Duvara sabitleme ve eşya yerleşimini değiştirme önerilir.");
 
@@ -194,7 +209,7 @@ export default function AnalysisPage() {
 
       }
 
-      const payload = result as { odaSkoru: unknown; riskler: unknown; yorum?: unknown };
+      const payload = result as { odaSkoru: unknown; riskler: unknown; yorum?: unknown; sorular?: unknown; belirsizSorular?: unknown };
 
       if (typeof payload.odaSkoru !== "number" || !Number.isFinite(payload.odaSkoru) || payload.odaSkoru < 0 || payload.odaSkoru > 100 || !Array.isArray(payload.riskler)) {
 
@@ -219,6 +234,20 @@ export default function AnalysisPage() {
       setScore(payload.odaSkoru);
 
       setCommentary(typeof payload.yorum === "string" ? payload.yorum : "");
+
+      // Optional API contract: sorular (or belirsizSorular) is an array of
+      // { id: string, soru: string, riskId?: string }.
+      // No example questions are shown for a real API response.
+      const rawQuestions = payload.sorular ?? payload.belirsizSorular;
+      if (Array.isArray(rawQuestions)) {
+        const parsed = rawQuestions.filter((item: unknown): item is UncertaintyQuestion => {
+          if (!item || typeof item !== "object") return false;
+          const q = item as Record<string, unknown>;
+          return typeof q.id === "string" && typeof q.soru === "string" &&
+            (q.riskId === undefined || typeof q.riskId === "string");
+        });
+        setQuestions(parsed);
+      }
 
       setStage("results");
 
@@ -653,7 +682,50 @@ export default function AnalysisPage() {
 
               <section className="border border-[#2C3444] bg-[#151818] p-6"><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">AI / INSIGHT</p><h2 className="mt-3 text-xl font-black">ANALİZ YORUMU</h2><div className="mt-5 border-l-2 border-[#9966CC] pl-4"><p className="text-sm leading-7 text-[#A7A3B3]">{commentary || "Bu analiz için yorum bulunmuyor."}</p></div></section>
 
-              <section className="border border-[#2C3444] bg-[#151818] p-6"><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">VERIFICATION / QUESTION</p><h2 className="mt-3 text-xl font-black">BELİRSİZLİK KONTROLÜ</h2><p className="mt-5 text-sm leading-6 text-[#A7A3B3]">{demo ? "Örnek soru: Yüksek dolap duvara sabitli mi?" : "Yüksek dolap duvara sabitli mi? (Örnek soru; API soruları henüz bağlanmadı.)"}</p><div className="mt-5 flex gap-3">{(["evet", "hayir"] as const).map((answer) => <button key={answer} type="button" onClick={() => setAnchored(answer)} className={`border px-5 py-3 text-xs font-bold transition ${anchored === answer ? "border-[#9966CC] bg-[#2A2140]" : "border-[#636E85] hover:border-[#9966CC]"}`}>{answer === "evet" ? "EVET" : "HAYIR"}</button>)}</div>{anchored && <p className="mt-4 text-xs leading-6 text-[#E0A73A]">Yanıt bu ekranda kaydedildi. Risk yeniden hesaplaması henüz API'ye bağlı değil.</p>}</section>
+              <section className="border border-[#2C3444] bg-[#151818] p-6">
+                <p className="font-mono text-[10px] tracking-widest text-[#9966CC]">VERIFICATION / QUESTIONS</p>
+                <h2 className="mt-3 text-xl font-black">BELİRSİZLİK KONTROLÜ</h2>
+                {questions.length === 0 ? (
+                  <p className="mt-5 text-sm leading-6 text-[#A7A3B3]">
+                    Bu analiz için doğrulama sorusu bulunmuyor.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-3 text-xs text-[#A7A3B3]">
+                      {Object.keys(answers).length} / {questions.length} soru yanıtlandı
+                    </p>
+                    <div className="mt-5 space-y-5">
+                      {questions.map((question) => (
+                        <div key={question.id} className="border border-[#2C3444] bg-[#0B0C10] p-4">
+                          <p className="text-sm leading-6">{question.soru}</p>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {(["evet", "hayir", "bilmiyorum"] as const).map((answer) => (
+                              <button
+                                key={answer}
+                                type="button"
+                                aria-pressed={answers[question.id] === answer}
+                                onClick={() => setAnswers((previous) => ({ ...previous, [question.id]: answer }))}
+                                className={`border px-4 py-3 text-xs font-bold transition ${
+                                  answers[question.id] === answer
+                                    ? "border-[#9966CC] bg-[#2A2140] text-[#F2F0F5]"
+                                    : "border-[#636E85] hover:border-[#9966CC]"
+                                }`}
+                              >
+                                {answer === "evet" ? "EVET" : answer === "hayir" ? "HAYIR" : "BİLMİYORUM"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {Object.keys(answers).length > 0 && (
+                      <p role="status" className="mt-4 text-xs leading-6 text-[#E0A73A]">
+                        Yanıtlar bu analiz ekranında saklanıyor. API'ye gönderilmedi ve risk skoru yeniden hesaplanmadı.
+                      </p>
+                    )}
+                  </>
+                )}
+              </section>
 
             </div>
 
