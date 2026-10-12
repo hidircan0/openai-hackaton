@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { analyzeRoom, SimulationConfigurationError, SimulationRequestError } from "../../../ai/analyze-room";
+import { analyzeRoom, SimulationRequestError } from "../../../ai/analyze-room";
 import { OpenAIConfigurationError, OpenAIRequestError } from "../../../ai/openai";
+import { SimulationConfigurationError } from "../../../simulation/service-url";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -26,10 +27,10 @@ export async function POST(request: Request) {
       console.error("OpenAI analiz çağrısı başarısız:", error.message);
       return NextResponse.json({ error: "OpenAI fotoğrafı analiz edemedi. API anahtarını, model erişimini ve kota durumunu kontrol edip tekrar deneyin." }, { status: 502 });
     }
-    if (error instanceof SimulationConfigurationError) return NextResponse.json({ error: "Sunucuda SIMULATION_SERVICE_URL tanımlı değil. PyBullet servisini dağıtıp bu adresi ekleyin." }, { status: 503 });
+    if (error instanceof SimulationConfigurationError) return NextResponse.json({ error: error.message }, { status: 503 });
     if (error instanceof SimulationRequestError) {
       console.error("PyBullet simülasyonu başarısız:", error.message);
-      return NextResponse.json({ error: "PyBullet simülasyon servisi isteği işleyemedi. Servis adresini ve oda ölçülerini kontrol edin." }, { status: 502 });
+      return NextResponse.json({ error: error.message }, { status: 502 });
     }
     console.error("Oda analizi başarısız:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Analiz sırasında beklenmeyen hata oluştu." }, { status: 422 });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSimulationServiceUrl, SimulationConfigurationError } from "../../../simulation/service-url";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -11,16 +12,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "İstek gövdesi geçerli JSON değil." }, { status: 400 });
   }
 
-  const serviceUrl = process.env.SIMULATION_SERVICE_URL;
-  if (!serviceUrl) {
+  let serviceUrl: string;
+  try {
+    serviceUrl = getSimulationServiceUrl();
+  } catch (error) {
     return NextResponse.json(
-      { error: "Simülasyon servisi ayarlı değil. SIMULATION_SERVICE_URL değerini tanımlayın." },
+      { error: error instanceof SimulationConfigurationError ? error.message : "Simülasyon servisi ayarı geçersiz." },
       { status: 503 },
     );
   }
 
   try {
-    const response = await fetch(`${serviceUrl.replace(/\/$/, "")}/simulate`, {
+    const response = await fetch(`${serviceUrl}/simulate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -29,9 +32,9 @@ export async function POST(request: Request) {
     });
     const result: unknown = await response.json();
     return NextResponse.json(result, { status: response.status });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { error: "Fizik simülasyonu şu anda yanıt vermiyor. Python simülasyon servisini kontrol edin." },
+      { error: `Fizik servisine (${serviceUrl}) bağlanılamadı: ${error instanceof Error ? error.message : "Bağlantı kurulamadı."}` },
       { status: 503 },
     );
   }
