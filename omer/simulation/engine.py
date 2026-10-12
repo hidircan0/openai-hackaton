@@ -81,14 +81,16 @@ def _make_item(client: int, item: ItemInput) -> tuple[int, float]:
     )
     bullet.changeDynamics(
         body, -1, lateralFriction=friction, spinningFriction=0.02,
-        rollingFriction=0.01, restitution=0, physicsClientId=client,
+        rollingFriction=0.01, restitution=0, angularDamping=0.16,
+        physicsClientId=client,
     )
     return body, mass
 
 
 def _pga_g(intensity: int) -> float:
-    # Initial calibration range: 0.05g at level 1 through 0.50g at level 9.
-    return 0.05 + (intensity - 1) * (0.45 / 8)
+    # Mildly favor overturning while keeping the strongest input bounded.
+    # Calibration range: 0.055g at level 1 through 0.55g at level 9.
+    return 0.055 + (intensity - 1) * (0.495 / 8)
 
 
 def _acceleration(t: float, duration: float, pga: float) -> tuple[float, float]:

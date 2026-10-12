@@ -38,7 +38,7 @@ This is an approximate object-level simulation, not a structural assessment or a
 
 - All lengths and positions are in centimeters. `anchored` is explicitly supplied by the user for every item.
 - `criticalZones` comes from the upstream analysis and includes each region's type, rectangular bounds, and penalty points. Supported types are `bed`, `work_area`, and `exit`.
-- `intensity` is an integer in `[1, 9]`; `durationSeconds` is an integer in `[5, 60]`. The initial calibration maps intensity linearly to PGA from `0.05g` through `0.50g`; values are simulation parameters, not a measured earthquake scale.
+- `intensity` is an integer in `[1, 9]`; `durationSeconds` is an integer in `[5, 60]`. The current mild overturning calibration maps intensity linearly to PGA from `0.055g` through `0.55g`, with angular damping to limit excessive tumbling; values are simulation parameters, not a measured earthquake scale.
 - The response contains `items[].outcome`, `items[].after`, and `items[].impact`. `impact.hit` and `impact.hitZones` describe overlap with `bed` / `work_area` regions by a tipped or fallen item's final footprint; the `exit` corridor is evaluated separately by R4. `impact.hitItemIds` contains IDs of other furniture physically struck by that item, or `null` if there were no such contacts.
 - A struck item also has `wasHit: true` and `hitByItemIds` containing the falling item's ID(s). Otherwise `wasHit` is false and `hitByItemIds` is `null`.
 - A room-level `impact.hit` and `impact.itemIds` summarize all impacted furniture IDs. `itemIds` is `null` when no furniture item was hit. Floor and room-wall contacts are not included in this furniture collision list.
