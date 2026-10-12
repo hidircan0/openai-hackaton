@@ -36,7 +36,7 @@ Devrilme eşikleri (`h ≥ 120`, `h ≥ 150`), aktif kurallar (R5, R6 sadece isg
 
 - **`POST /api/analyze`** → `oda`, `esyalar` (t0 ve t1), `bolgeler`, `riskler`, `odaSkoru`, `cezalar` (`kayma`, `carpma[]`), ardından akan `yorum`. Tipler `cem/schema`'dan.
 - **"Önlemleri uygula" / "belirsiz" cevapları**: Sabitlenen eşyalarla 3–6. adımlar tekrar çalışır, GPT'ye gidilmez.
-- `scene/` t1'i sadece buradan alır; sahnede hesap yapılmaz.
+- `hidircan/scene` t1'i sadece buradan alır; sahnede hesap yapılmaz.
 
 ## Kontrol noktaları
 

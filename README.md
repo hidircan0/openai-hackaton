@@ -4,6 +4,8 @@
 
 ```text
 app/                 Next.js sayfaları ve ekran stili
+app/api/fal/         fal.ai oda görseli API rotası
+fal/                 Sunucu tarafı fal.ai istemcisi ve doğrulama
 scene/               Oda sahnesi, API yanıt adaptörü, 2D yedek plan
 omer/                Backend dokümanları ve örnek analiz yanıtı
 cem/                 AI dokümanları
@@ -17,7 +19,7 @@ Uygulama kaynak kodu kökteki `app/` ve `scene/` dizinlerinde; kişi klasörleri
 
 ## Docker ile yerel çalıştırma
 
-1. fal.ai anahtarını kullanacaksan `.env.local` içindeki `FAL_KEY=` alanına ekle. Bu dosya Git tarafından ignore edilir. Paylaşılabilir şablon `.env.example` dosyasıdır.
+1. fal.ai görselini yerelde deneyeceksen `.env.local` oluşturup `FAL_KEY=...` ekle. Bu dosya Git tarafından ignore edilir; anahtarı kaynak koda veya `.env.example` dosyasına koyma. Vercel'de `FAL_KEY` Production (ve istersen Preview) ortamında tanımlı olmalı.
 2. Uygulamayı build edip arka planda başlat:
 
    ```bash
@@ -28,11 +30,11 @@ Uygulama kaynak kodu kökteki `app/` ve `scene/` dizinlerinde; kişi klasörleri
 
 Çalışan servise sonradan `.env.local` anahtarı eklersen Compose'u yeniden oluştur: `docker compose up --build -d --force-recreate`.
 
-Örnek analiz verisi otomatik yüklenir. `DEPREMİ GÖSTER` ile t0→t1 animasyonunu, `PLAN` ile 2D görünümü açabilirsin.
+Analiz ekranında fal.ai bölümünden oda fotoğrafı için temsili bir önlem sonrası görsel üretebilirsin. Fotoğraf JPEG, PNG veya WebP olmalı; fal.ai yükleme sınırı 4 MB. Görsel üretim hesabında ücret oluşturabilir ve skor/simülasyon sonucunu değiştirmez.
 
 ```bash
 docker compose logs -f web  # logları izle
 docker compose down         # servisi durdur
 ```
 
-Bu Compose kurulumu uygulamayı makinede ayağa kaldırır; internete açık bir sunucuya yayın yapmaz. fal.ai API çağrısı henüz bu demo akışına ekli değildir.
+Bu Compose kurulumu uygulamayı makinede ayağa kaldırır; internete açık bir sunucuya yayın yapmaz. Vercel'e yeni kodu deploy ettikten sonra `FAL_KEY` değişkeninin etkin olduğu ortamda fal.ai düğmesi çalışır. Vercel ortam değişkeni değiştirildiyse yeni deployment gerekir.

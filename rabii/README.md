@@ -27,7 +27,7 @@ rabii/
 ## Bağımlılıklar
 
 - **`omer/api`**: `POST /api/analyze` yanıtı ve akan yorum
-- **`scene/`**: `<Sahne />` bileşeni, ortadaki 3D alan
+- **`hidircan/scene`**: `<Sahne />` bileşeni, ortadaki 3D alan
 - **`cem/schema`**: tipler
 - **`omer/profiles`**: hangi sütunlar görünür, dil sade mi resmî mi. Ev görünümü ayrı ekran değil, aynı tablonun azaltılmış hâli.
 

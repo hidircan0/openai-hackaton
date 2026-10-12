@@ -20,10 +20,10 @@ Sarsıntı tek bir oda fotoğrafından deprem anında devrilebilecek eşyaları,
 1. **Skoru kod hesaplar.** Model hiçbir puan üretmez ve değiştirmez. Modelin ürettiği tek sayılar, algılamadaki tahmini boyut ve koordinatlardır.
 2. **GPT-6 Sol (`gpt-6-sol`, Responses API) yalnızca iki yerde çağrılır:** algılama (`/ai`) ve yorum (`/ai`). Başka model çağrısı ekleme.
 3. **Yorum çağrısının çıktı şemasında skor ya da puan alanı yoktur.** Skor prompt'a sabit değer olarak verilir.
-4. **Son konumları (t1) yalnızca `/engine` hesaplar.** `/scene` kendi fizik hesabını yapmaz; `/engine`'in kaydettiği hareket izlerini (`simulation.tracks`) oynatır, son kare t1'dir.
+4. **Son konumları (t1) yalnızca `/engine` hesaplar.** `/scene` kendi fizik hesabını yapmaz, sadece t0'dan t1'e animasyon yapar.
 5. **Profil davranışı `/profiles` altındaki ayar dosyalarıyla değişir.** Kodda `if (profil === "ev")` gibi dallanma yok.
 6. **Model çıktısı her zaman şemaya göre doğrulanır.** Doğrulanamazsa hata döner; değer uydurulmaz, varsayılan sessizce doldurulmaz.
-7. **Fizik motoru yalnızca `/engine`'de, sunucuda çalışır** (Rapier, `@dimforge/rapier3d-compat`). Sahne ve arayüz fizik çalıştırmaz. Simülasyon deterministiktir: sabit adım, sabit eşya sırası, rastgelelik yok, sürüm sabit. Aynı oda her seferinde aynı t1'i ve skoru alır. Ayrıntı: [omer/motor-plan.md](omer/motor-plan.md).
+7. **Fizik motoru yok.** Devrilme, eşyanın ön alt kenarı etrafında 90° dönmesidir.
 8. **Arayüz metinleri Türkçe**, renkler SkyEngineX token'larından.
 9. **Küçük, odaklı değişiklik.** Testler geçmeden merge yok; `main` her an deploy edilebilir.
 10. **Başkasının klasörüne dokunmadan önce sor** (sahiplik tablosu aşağıda).
@@ -32,7 +32,7 @@ Sarsıntı tek bir oda fotoğrafından deprem anında devrilebilecek eşyaları,
 
 1. **Algılama (GPT-6 Sol):** Fotoğraf → oda, eşyalar, tahmini boyutlar, ilk konumlar (t0).
 2. **Bölgeler (kod):** Eşya listesinden kritik bölgeler üretilir.
-3. **Sallama (kod, fizik motoru):** Oda sunucuda birkaç saniye sallanır; her eşyanın durduğu yer t1, hareketi `simulation.tracks` olur. Hata ya da süre aşımında kural modeline (paraşüt) düşülür.
+3. **Sallama (kod):** Devrilme modeli her eşyanın son konumunu (t1) hesaplar.
 4. **Kayma (kod):** `|t0 − t1| / oda boyutu` → K.
 5. **Çarpma (kod):** Devrilen eşyaların izi kritik bölgelere değiyor mu?
 6. **Skor (kod):** `100 − kayma cezası − çarpma cezası`; risk satırlarının O ve Ş değerleri.
@@ -46,13 +46,13 @@ Sarsıntı tek bir oda fotoğrafından deprem anında devrilebilecek eşyaları,
 |---|---|---|---|
 | `/schema` | Cem + Ömer | `main` | Veri sözleşmesinin tek kaynağı; değişiklik sadece sync anlarında |
 | `/ai` | Cem | `feat/ai` | Algılama ve yorum çağrıları, prompt'lar, şema doğrulama |
-| `/engine` | Ömer | `feat/engine` | Bölgeler, fizik simülasyonu (Rapier) + kural paraşütü, kayma, çarpma, skor, O/Ş, matris; testler |
+| `/engine` | Ömer | `feat/engine` | Bölgeler, sallama, kayma, çarpma, skor, O/Ş, matris; saf fonksiyonlar + testler |
 | `/profiles` | Ömer | `feat/engine` | `isg`, `ev`, `okul` ayar dosyaları |
 | `/api` | Ömer | `feat/engine` | `POST /api/analyze` |
 | `/scene` | Hıdırcan | `feat/scene` | react-three-fiber sahnesi, animasyon, bölge çizimi |
 | `/app` | Rabii | `feat/ui` | Ekranlar, skor göstergesi, risk tablosu, onay akışı |
 
-Stack: Next.js (App Router) + TypeScript + Tailwind · 3D: `@react-three/fiber` · Fizik: `@dimforge/rapier3d-compat` (sadece sunucu, Node runtime) · Deploy: Vercel. Merge'i Ömer yapar.
+Stack: Next.js (App Router) + TypeScript + Tailwind · 3D: `@react-three/fiber` · Deploy: Vercel. Merge'i Ömer yapar.
 
 ## Veri sözleşmesi
 
@@ -73,9 +73,7 @@ Stack: Next.js (App Router) + TypeScript + Tailwind · 3D: `@react-three/fiber` 
 - `sabit`: `evet | hayir | belirsiz`
 - `asili`, `ustYuk`, `cam`: boolean
 - `guven`: 0–1, modelin güveni
-- `t1`: `/engine`'in hesapladığı yeni taban ve z aralığı (algılamada boş). Fizik modunda devrik kutunun eksenlere paralel sarmalayan kutusu (AABB); ayrıca son poz (konum + quaternion) ve sonuç sınıfı `stationary | slid | tipped | fell`
-
-**Simülasyon** (yanıtta `simulation`): `mode` (`physics | rules`), `fps`, `groundMotion`, odanın kare kare yer değiştirmesi ve her eşyanın izi `tracks[id] = [[t, x, y, z, qx, qy, qz, qw], …]` (cm).
+- `t1`: `/engine`'in hesapladığı yeni taban ve z aralığı (algılamada boş)
 
 **Risk**
 - `id`, `esyaId`, `kural` (R1–R7), `tehlike` (kısa tanım)
@@ -86,7 +84,7 @@ Stack: Next.js (App Router) + TypeScript + Tailwind · 3D: `@react-three/fiber` 
 - `sorumlu`, `termin`: sadece `isg` profilinde
 - `onay`: `bekliyor | onaylandi | duzenlendi`
 
-**`POST /api/analyze` yanıtı:** `oda`, `esyalar` (t0 ve t1), `bolgeler`, `riskler`, `odaSkoru`, `cezalar` (`kayma` ve `carpma[]`: bölge, eşya, puan), `simulation`, ardından akan `yorum`.
+**`POST /api/analyze` yanıtı:** `oda`, `esyalar` (t0 ve t1), `bolgeler`, `riskler`, `odaSkoru`, `cezalar` (`kayma` ve `carpma[]`: bölge, eşya, puan), ardından akan `yorum`.
 
 ## Algılama prompt'u (Cem)
 
@@ -103,28 +101,19 @@ Stack: Next.js (App Router) + TypeScript + Tailwind · 3D: `@react-three/fiber` 
 | `yatak` | Yatağın tabanı + her yönde 20 cm | 25 |
 | `calisma` | Masa + açık tarafında 80 cm oturma bandı; kanepe ve sandalyeler | 15 |
 
-## Sallama simülasyonu (Ömer)
+## Devrilme modeli (Ömer)
 
-Tam plan: [omer/motor-plan.md](omer/motor-plan.md). Özet:
+| Kod | Koşul | Simülasyonda ne olur? | Profil |
+|---|---|---|---|
+| R1 | Sabit değil ya da belirsiz, `h ≥ 120` | Ön alt kenar etrafında 90° devrilir. Yeni taban: ön kenar boyunca genişlik, `yon` yönünde `h` uzunluk; yeni yükseklik = eski derinlik | Hepsi |
+| R2 | `ustYuk` ve `h ≥ 150` | Yük önüne düşer: eşyanın önünde `h/2` uzunluğunda iz | Hepsi |
+| R3 | `asili` ve sabitlemesi belirsiz (ayna, cam, duvar rafı) | Aşağı düşer: izdüşüm + `yon` yönünde `h/2`; z alttaki yüzeye iner | Hepsi |
+| R4 | Kapı önü koridoru | Devrilenlerden sonra kalan açık genişlik < 60 cm ise yol kapalı | Hepsi |
+| R5 | Yerde kablo, geçiş yolunda | Simülasyona girmez; sadece risk satırı | isg, okul |
+| R6 | Söndürücü yok ya da önü kapalı | Simülasyona girmez; sadece risk satırı | isg, okul |
+| R7 | Ağır yük rafın üst yarısında | R2 gibi; raf sabit değilse R1 de çalışır | isg |
 
-- **Kurulum:** Zemin ve duvarlar tek kinematik oda gövdesi. `sabit: evet` eşyalar oda gövdesine eklenir (`t1 = t0` birebir). Sabit olmayan ya da belirsiz eşyalar dinamik kutu; kütle = tip yoğunluğu × hacim, sürtünme profilden. Asılı ve sabitlemesi belirsiz eşyalar eklemle duvara bağlıdır; zemin ivmesi eşiği geçince eklem kopar. Üst yük (`ustYuk`, raf istifi) ayrı kutu.
-- **Sarsıntı:** Oda `A · zarf(t) · sin(2πft)` ile x ve y'de sallanır (`A = PGA / (2πf)²`, başlangıç PGA 0,35g, f 1,5 Hz, 10 s). Sabit adım `1/120 s`.
-- **t1:** Son pozdan eksenlere paralel sarmalayan kutu. Merkez 2 cm'den, dönüş 5°'den az değiştiyse `t1 = t0`.
-- **Kurallar artık fizik sonucundan etiketlenir:**
-
-| Kod | Ne zaman? | Profil |
-|---|---|---|
-| R1 | Yerdeki eşya devrildi (yukarı ekseni 45°'den fazla eğildi) | Hepsi |
-| R2 | Üst yük eşyanın tepesinden düştü | Hepsi |
-| R3 | Asılı eşyanın askısı koptu ve düştü | Hepsi |
-| R4 | Simülasyon sonrası kapı koridorunda kalan açık genişlik < 60 cm | Hepsi |
-| R5 | Yerde kablo, geçiş yolunda: simülasyona girmez, sadece risk satırı | isg, okul |
-| R6 | Söndürücü yok ya da önü kapalı: simülasyona girmez, sadece risk satırı | isg, okul |
-| R7 | Raftaki istif düştü (R2'nin raf hâli); raf da devrildiyse R1 de | isg |
-
-- Kayan ama devrilmeyen eşya (`slid`) sadece kayma cezası alır, çarpma cezası almaz.
-- Bütün fizik parametreleri (PGA, frekans, süre, yoğunluk, sürtünme, eşikler) profil dosyasındadır.
-- **Paraşüt (kural modeli):** Fizik hata verirse, 3 s'yi aşarsa ya da 13:30 kararında yetersiz bulunursa eski model çalışır: R1 sabit değil/belirsiz ve `h ≥ 120` ise ön alt kenar etrafında 90° devrilme (yeni taban: genişlik aynı, `yon` yönünde `h` uzunluk; yeni yükseklik = eski derinlik); R2 `ustYuk` ve `h ≥ 150` ise önünde `h/2` iz; R3 asılı ve belirsizse izdüşüm + `yon` yönünde `h/2`, z alttaki yüzeye iner. Yanıtta `simulation.mode = "rules"` ve uyarı.
+Sabit eşya devrilmez: `t1 = t0`. Eşikler başlangıç değerleridir; profil dosyasından okunur.
 
 ## Skor formülü (Ömer)
 
@@ -161,9 +150,7 @@ odaSkoru = clamp(100 − kayma_cezasi − Σ bölge_cezasi, 0, 100)   → ekrand
 
 ## Kabul testi odası
 
-**Fizik modu** bu odayla şunları sağlamalı: aynı girdiyle iki çalıştırma birebir aynı sonuç; kitaplık `tipped` ve izi yatak bölgesine değiyor; ayna `fell` ve yatağın üzerine iniyor; gardırop, masa ve yatak `stationary`; kaçış koridoru açık. Skor bantları: başlangıç 50–70 · kitaplık sabitlenince 80–95 · ayna da sabitlenince 100, sıra artan. Kalibrasyondan sonra tam sonuç `omer/engine/__tests__/golden/kabul-odasi.json`'a kilitlenir.
-
-**Kural modeli (paraşüt)** testleri bu odayla aşağıdaki sonuçları vermeli (±1).
+`/engine` testleri bu odayla aşağıdaki sonuçları vermeli (±1).
 
 - **Oda:** `Lx 400`, `Ly 300`, `Lz 260`
 - **Kitaplık:** taban x 50–130, y 0–40; `h 190`; `yon +y`; `sabit hayir`
@@ -179,7 +166,7 @@ odaSkoru = clamp(100 − kayma_cezasi − Σ bölge_cezasi, 0, 100)   → ekrand
 | Kitaplık sabitlendi | kayma ≈ 0,2 · yatak cezası 13 (ayna, 0,4 × 1,3 = 0,52) | **87** |
 | Ayna da sabitlendi | kayma 0 · ceza yok | **100** |
 
-Kural modelinde kitaplığın devrilme izi y 40–230 aralığında yatak bölgesine (y ≥ 130) değer; kaçış koridoruna ve çalışma alanına değmez. Bu tablodaki rakamlar fizik modunun rakamları değildir; pitch'te fizik modundaki gerçek değerler söylenir.
+Kitaplığın devrilme izi y 40–230 aralığında yatak bölgesine (y ≥ 130) değer; kaçış koridoruna ve çalışma alanına değmez.
 
 ## Yorum çağrısı (Cem)
 
@@ -199,7 +186,7 @@ Kural modelinde kitaplığın devrilme izi y 40–230 aralığında yatak bölge
 
 - **Akış:** Yükle → Profil seç → Analiz (adım adım: "Eşyalar çıkarılıyor… Riskler hesaplanıyor…") → 3D + Skor + Tablo → Onay.
 - **Skor göstergesi:** Büyük rakam, koddan anında gelir; yorum ayrıca akarak gelir, kullanıcı yorumu beklemez.
-- **"Önlemleri uygula":** Önce/sonra skoru gösterir (rakamlar API'den; kural modelindeki örnek 62 → 87 → 100).
+- **"Önlemleri uygula":** Önce/sonra skoru gösterir (örnek 62 → 87 → 100).
 - **Risk tablosu:** tehlike, O, Ş, skor, seviye, gerekçe, önlem; `isg`'de sorumlu ve termin; her satırda onayla / düzenle. Onaylanmayan satır rapora girmez.
 - **Ev görünümü:** Ayrı ekran değil; aynı tablonun sütunları azaltılmış, dili sade hâli.
 - **"Belirsiz" soruları:** Düşük güvenli eşyalar için evet/hayır soruları; cevap motoru yeniden çalıştırır.
@@ -208,7 +195,7 @@ Kural modelinde kitaplığın devrilme izi y 40–230 aralığında yatak bölge
 
 - Eşyalar t0'a göre kutu olarak çizilir. Riskli eşyalar danger rengiyle.
 - Kritik bölgeler zeminde yarı saydam alanlar olarak görünür; jüri devrilen kutunun hangi bölgeye düştüğünü görmeli.
-- **Deprem butonu:** Oda `simulation.room` ile sallanır, eşyalar `simulation.tracks` izlerini oynatır; son kare t1. Konumlar `/engine`'den gelir; sahnede fizik ya da hesap yok. `simulation.mode = "rules"` ise iz yoktur: eski t0 → t1 dönme animasyonu.
+- **Deprem butonu:** Kısa kamera sarsıntısı, ardından riskli eşyalar sırayla t1'e devrilir. Konumlar `/engine`'den gelir; sahnede hesap yok.
 - Sahne takılırsa 13:30 paraşütü: 2D kuşbakışı plan + devrilme izleri (SVG).
 
 ## Marka ve görünüm
@@ -224,7 +211,7 @@ Kural modelinde kitaplığın devrilme izi y 40–230 aralığında yatak bölge
 | 09:50 | Şema + sahte oda JSON'u herkeste |
 | 10:20 | Canlı URL |
 | 12:30 | Uçtan uca akış: fotoğraf → skor → tablo → 3D |
-| 13:30 | **Karar noktası:** çalışmıyorsa paraşüt (3D yerine 2D, ev modu iptal); fizik modu testleri geçmiyorsa ya da Vercel'de 3 s'yi aşıyorsa varsayılan mod kural modeli |
+| 13:30 | **Karar noktası:** çalışmıyorsa paraşüt (3D yerine 2D, ev modu iptal) |
 | 14:30 | Deprem butonu ve ev modu; değilse ev ve okul iptal |
 | 15:00 | **Özellik dondurma:** sadece hata düzeltme |
 | 15:50 | Teslim (Ömer) |
@@ -234,9 +221,7 @@ Kural modelinde kitaplığın devrilme izi y 40–230 aralığında yatak bölge
 ## Yapma listesi
 
 - Skoru ya da O/Ş'yi modele hesaplatma.
-- Sahnede ya da tarayıcıda fizik çalıştırma; fizik yalnızca `/engine`'de, sunucuda.
-- Simülasyona rastgelelik ya da değişken zaman adımı ekleme.
-- Model eğitimi ya da ince ayar ekleme.
+- Fizik motoru, model eğitimi ya da ince ayar ekleme.
 - Bina sağlamlığı ya da yapısal analiz iddiasında bulunma.
 - "Makine öğrenimi" ifadesini kayma hesabı için kullanma; doğrusu "normalize edilmiş kayma hesabı".
 - Test ya da demo verisi uydurup gerçekmiş gibi gösterme; önceden analiz edilmiş bir örnek kullanılıyorsa sorulduğunda açıkça söyle.
@@ -244,7 +229,7 @@ Kural modelinde kitaplığın devrilme izi y 40–230 aralığında yatak bölge
 
 ## Pitch ile tutarlılık
 
-- "Oda Güvenlik Skoru", "rijit cisim fizik simülasyonu (eşyalar kutu, kütle ve sürtünme tahmini)", "taslak, uzman onaylı". Gerçek deprem ya da bina davranışı iddiası yok.
+- "Oda Güvenlik Skoru", "basitleştirilmiş devrilme modeli", "taslak, uzman onaylı".
 - "GPT-6 Sol fotoğrafı okuyor ve yorumluyor; skoru kodumuz hesaplıyor, model değiştiremiyor."
 - "Her uzman onayı sisteme bir etiket; katsayılar uzman verisiyle kalibre edilecek."
 - Skor rakamlarını demo odasının gerçek değerlerinden söyle; örnek rakamları gerçekmiş gibi kullanma.

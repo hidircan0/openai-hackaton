@@ -1,25 +1,32 @@
 {
-  "name": "sarsinti-room-safety",
+  "name": "sarsinti",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0"
+    "start": "next start --hostname 0.0.0.0",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fal-ai/client": "^1.10.1",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.1",
-    "next": "16.4.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "exceljs": "^4.4.0",
+    "next": "^15.5.27",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
     "three": "0.186.1"
   },
   "devDependencies": {
-    "@types/node": "^20.19.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
-    "typescript": "^5.9.0"
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
