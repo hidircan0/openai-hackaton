@@ -1,0 +1,234 @@
+{
+  "oda": {
+    "tip": "yatak_odasi",
+    "boyut": {
+      "genislikCm": 400,
+      "derinlikCm": 300,
+      "yukseklikCm": 260
+    },
+    "kacisNoktalari": [
+      {
+        "tip": "kapi",
+        "duvar": "sag",
+        "baslangicCm": 100,
+        "bitisCm": 190,
+        "genislikCm": 90
+      }
+    ],
+    "uyarilar": [],
+    "profil": "isg",
+    "odaSkoru": 62,
+    "yorum": "Kitaplığın depremde devrilerek yatağın üzerine düşme riski bulunuyor. Kitaplığı duvara sabitlemek ve aynanın sabitlemesini kontrol etmek öncelikli önlemlerdir."
+  },
+  "esyalar": [
+    {
+      "id": "kitaplik-1",
+      "tip": "kitaplik",
+      "t0": {
+        "taban": {
+          "x1": 50,
+          "y1": 0,
+          "x2": 130,
+          "y2": 40
+        },
+        "zAlt": 0,
+        "zUst": 190
+      },
+      "t1": {
+        "taban": {
+          "x1": 50,
+          "y1": 40,
+          "x2": 130,
+          "y2": 230
+        },
+        "zAlt": 0,
+        "zUst": 40
+      },
+      "boyut": {
+        "genislikCm": 80,
+        "derinlikCm": 40,
+        "yukseklikCm": 190
+      },
+      "yon": {
+        "deger": "arka_duvara_dogru",
+        "eksen": "+y"
+      },
+      "sabit": "hayir",
+      "asili": false,
+      "ustYuk": false,
+      "kirilgan": false,
+      "guven": 0.91,
+      "tetiklenenKurallar": ["R1"]
+    },
+    {
+      "id": "yatak-1",
+      "tip": "yatak",
+      "t0": {
+        "taban": {
+          "x1": 40,
+          "y1": 150,
+          "x2": 130,
+          "y2": 300
+        },
+        "zAlt": 0,
+        "zUst": 50
+      },
+      "t1": {
+        "taban": {
+          "x1": 40,
+          "y1": 150,
+          "x2": 130,
+          "y2": 300
+        },
+        "zAlt": 0,
+        "zUst": 50
+      },
+      "boyut": {
+        "genislikCm": 90,
+        "derinlikCm": 150,
+        "yukseklikCm": 50
+      },
+      "yon": {
+        "deger": "sabit",
+        "eksen": null
+      },
+      "sabit": "evet",
+      "asili": false,
+      "ustYuk": false,
+      "kirilgan": false,
+      "guven": 0.98,
+      "tetiklenenKurallar": []
+    },
+    {
+      "id": "ayna-1",
+      "tip": "ayna",
+      "t0": {
+        "taban": {
+          "x1": 60,
+          "y1": 298,
+          "x2": 120,
+          "y2": 300
+        },
+        "zAlt": 110,
+        "zUst": 190
+      },
+      "t1": {
+        "taban": {
+          "x1": 60,
+          "y1": 258,
+          "x2": 120,
+          "y2": 300
+        },
+        "zAlt": 50,
+        "zUst": 52
+      },
+      "boyut": {
+        "genislikCm": 60,
+        "derinlikCm": 2,
+        "yukseklikCm": 80
+      },
+      "yon": {
+        "deger": "oda_ic_alana_dogru",
+        "eksen": "-y"
+      },
+      "sabit": "belirsiz",
+      "asili": true,
+      "ustYuk": false,
+      "kirilgan": true,
+      "guven": 0.76,
+      "tetiklenenKurallar": ["R3"]
+    }
+  ],
+  "bolgeler": [
+    {
+      "id": "bolge-yatak-1",
+      "tip": "yatak",
+      "sinirlar": {
+        "x1": 20,
+        "y1": 130,
+        "x2": 150,
+        "y2": 320
+      },
+      "puan": 25
+    },
+    {
+      "id": "bolge-kacis-1",
+      "tip": "kacis",
+      "sinirlar": {
+        "x1": 300,
+        "y1": 100,
+        "x2": 400,
+        "y2": 190
+      },
+      "puan": 30
+    },
+    {
+      "id": "bolge-calisma-1",
+      "tip": "calisma",
+      "sinirlar": {
+        "x1": 280,
+        "y1": 200,
+        "x2": 400,
+        "y2": 300
+      },
+      "puan": 15
+    }
+  ],
+  "riskler": [
+    {
+      "id": "risk-kitaplik-1",
+      "esyaId": "kitaplik-1",
+      "kural": "R1",
+      "tehlike": "Sabitlenmemiş kitaplık devrilerek yatağın üzerine düşebilir.",
+      "bolge": "yatak",
+      "olasilik": 4,
+      "siddet": 5,
+      "skor": 20,
+      "seviye": 5,
+      "seviyeEtiketi": "Tolere edilemez",
+      "gerekce": "Yaklaşık 190 cm yüksekliğindeki kitaplığın devrilme izi yatağın güvenli alanıyla kesişiyor.",
+      "onlem": "Kitaplığı duvara L-demir veya bağlantı kayışıyla sabitleyin.",
+      "sorumlu": "İSG uzmanı",
+      "termin": "Öncelikli",
+      "onay": "bekliyor"
+    },
+    {
+      "id": "risk-ayna-1",
+      "esyaId": "ayna-1",
+      "kural": "R3",
+      "tehlike": "Sabitlemesi belirsiz ayna düşerek yatağa ulaşabilir.",
+      "bolge": "yatak",
+      "olasilik": 3,
+      "siddet": 5,
+      "skor": 15,
+      "seviye": 4,
+      "seviyeEtiketi": "Yüksek",
+      "gerekce": "Aynanın tahmini düşme izi yatak bölgesiyle kesişiyor; duvar bağlantısının sağlamlığı fotoğraftan doğrulanamıyor.",
+      "onlem": "Aynayı yataktan uzaklaştırın ve güvenli askı kullandığını doğrulayın.",
+      "sorumlu": "İSG uzmanı",
+      "termin": "Kontrol edilmeli",
+      "onay": "bekliyor"
+    }
+  ],
+  "cezalar": {
+    "alfa": 2,
+    "kaymaIndeksi": 0.066,
+    "kayma": 13,
+    "carpma": [
+      {
+        "bolge": "yatak",
+        "esyaId": "kitaplik-1",
+        "puan": 25
+      }
+    ],
+    "toplam": 38
+  },
+  "seviyeOlcegi": {
+    "1": "Önemsiz",
+    "2": "Düşük",
+    "3": "Orta",
+    "4": "Yüksek",
+    "5": "Tolere edilemez"
+  },
+  "not": "Bu dosya örnek API yanıtıdır. yon.deger okunabilir yön adını, yon.eksen ise hesaplamada kullanılan koordinat yönünü gösterir. Risk seviye alanı 1–5 arasında sayısaldır; O × Ş risk skoru ayrı olarak 1–25 aralığında tutulur."
+}
