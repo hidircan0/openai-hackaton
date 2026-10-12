@@ -39,6 +39,42 @@ function severityColor(score: number) {
   return "border-[#3FB27F]/40 bg-[#3FB27F]/10 text-[#3FB27F]";
 }
 
+type Answer = "evet" | "hayir" | "bilmiyorum";
+const MAX_PHOTO_SIDE = 1600;
+
+/** GPT süresini kısaltmak için büyük fotoğrafı tarayıcıda en fazla 1600 piksele küçültür; olmazsa olduğu gibi gönderir. */
+async function shrinkPhoto(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size <= 1_500_000) { bitmap.close(); return file; }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    return blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" }) : file;
+  } catch {
+    return file;
+  }
+}
+
+/** API risklerini tabloya çevirir; yeniden hesaplamada kullanıcının onay ve düzenlemeleri korunur. */
+function toRisks(result: AnalyzeResponse, previous: Risk[] = []): Risk[] {
+  const kept = new Map(previous.map((risk) => [risk.id, risk]));
+  return result.risks.map((risk) => {
+    const old = kept.get(risk.id);
+    return { id: risk.id, tehlike: risk.hazard, gerekce: risk.reason, onlem: old?.onay === "duzenlendi" ? old.onlem : risk.recommendedAction, olasilik: risk.likelihood, siddet: risk.severity, skor: risk.riskScore, seviye: risk.levelLabel, onay: old?.onay ?? "bekliyor" };
+  });
+}
+
+function isAnalyzeResponse(result: unknown): result is AnalyzeResponse {
+  if (!result || typeof result !== "object" || !("safetyScore" in result) || !("risks" in result) || !("items" in result)) return false;
+  const response = result as AnalyzeResponse;
+  return typeof response.safetyScore === "number" && Number.isFinite(response.safetyScore) && response.safetyScore >= 0 && response.safetyScore <= 100 && Array.isArray(response.risks);
+}
+
 export default function AnalysisPage() {
   const [profile, setProfile] = useState<Profile>("isg");
   const [intensity, setIntensity] = useState(5);
@@ -60,7 +96,12 @@ export default function AnalysisPage() {
   const [falError, setFalError] = useState("");
   const [shakeVideo, setShakeVideo] = useState("");
   const [shakeLoading, setShakeLoading] = useState(false);
-  const [anchored, setAnchored] = useState<"evet" | "hayir" | null>(null);
+  // İlk analiz, sorular ve cevaplar; cevaplar her seferinde ilk analizin üzerine uygulanır (/api/rescore).
+  const [baseAnalysis, setBaseAnalysis] = useState<AnalyzeResponse | null>(null);
+  const [questions, setQuestions] = useState<AnalyzeResponse["questions"]>([]);
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [rescoring, setRescoring] = useState(false);
+  const [rescoreError, setRescoreError] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,7 +115,8 @@ export default function AnalysisPage() {
 
   function reset() {
     setStage("upload"); setRisks([]); setScore(null); setImprovement(0); setAnalysis(null); setShakeVideo(""); setShaking(false);
-    setCommentary(""); setAnchored(null); setError(""); setEditing(null);
+    setCommentary(""); setError(""); setEditing(null);
+    setBaseAnalysis(null); setQuestions([]); setAnswers({}); setRescoring(false); setRescoreError("");
   }
 
   async function analyze() {
@@ -91,25 +133,47 @@ export default function AnalysisPage() {
     }
     try {
       const data = new FormData();
-      data.append("photo", file); data.append("profile", profile);
+      data.append("photo", await shrinkPhoto(file)); data.append("profile", profile);
       data.append("intensity", String(intensity)); data.append("durationSeconds", String(durationSeconds));
       const response = await fetch("/api/analyze", { method: "POST", body: data });
-      const resultResponse = await response.json() as AnalyzeResponse & { error?: string };
-      if (!response.ok) throw new Error(resultResponse.error ?? `Analiz servisi yanıt vermedi (${response.status}).`);
-      if (!resultResponse || typeof resultResponse !== "object" || !("safetyScore" in resultResponse) || !("risks" in resultResponse) || !("items" in resultResponse)) {
-        throw new Error("API yanıt biçimi beklenen yapıyla eşleşmiyor.");
-      }
-      if (typeof resultResponse.safetyScore !== "number" || !Number.isFinite(resultResponse.safetyScore) || resultResponse.safetyScore < 0 || resultResponse.safetyScore > 100 || !Array.isArray(resultResponse.risks)) {
-        throw new Error("Skor veya risk listesi geçersiz.");
-      }
+      const resultResponse = await response.json() as unknown;
+      if (!response.ok) throw new Error((resultResponse as { error?: string }).error ?? `Analiz servisi yanıt vermedi (${response.status}).`);
+      if (!isAnalyzeResponse(resultResponse)) throw new Error("API yanıt biçimi beklenen yapıyla eşleşmiyor.");
       setAnalysis(resultResponse);
-      setRisks(resultResponse.risks.map((risk) => ({ id: risk.id, tehlike: risk.hazard, gerekce: risk.reason, onlem: risk.recommendedAction, olasilik: risk.likelihood, siddet: risk.severity, skor: risk.riskScore, seviye: risk.levelLabel, onay: "bekliyor" })));
+      setBaseAnalysis(resultResponse);
+      setQuestions(resultResponse.questions ?? []);
+      setAnswers({}); setRescoreError("");
+      setRisks(toRisks(resultResponse));
       setScore(resultResponse.safetyScore);
       setCommentary(resultResponse.commentary.roomComment);
       setStage("results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analiz başarısız.");
       setStage("upload");
+    }
+  }
+
+  /** "Sabit mi" cevabını skora işler: GPT'ye gitmeden yeniden simüle edilir, skor, riskler ve 3D güncellenir. */
+  async function answerQuestion(itemId: string, value: Answer) {
+    if (!baseAnalysis || rescoring) return;
+    const nextAnswers = { ...answers, [itemId]: value };
+    setAnswers(nextAnswers); setRescoring(true); setRescoreError("");
+    try {
+      const response = await fetch("/api/rescore", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ analysis: baseAnalysis, answers: nextAnswers }),
+      });
+      const result = await response.json() as unknown;
+      if (!response.ok) throw new Error((result as { error?: string }).error ?? `Yeniden hesaplama yanıt vermedi (${response.status}).`);
+      if (!isAnalyzeResponse(result)) throw new Error("Yeniden hesaplama yanıtı beklenen yapıyla eşleşmiyor.");
+      setShaking(false);
+      setAnalysis(result);
+      setRisks((previous) => toRisks(result, previous));
+      setScore(result.safetyScore);
+    } catch (err) {
+      setRescoreError(err instanceof Error ? err.message : "Skor yeniden hesaplanamadı.");
+    } finally {
+      setRescoring(false);
     }
   }
 
@@ -272,7 +336,7 @@ export default function AnalysisPage() {
 
             <div className="grid gap-5 lg:grid-cols-2">
               <section className="border border-[#2C3444] bg-[#151818] p-6"><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">AI / INSIGHT</p><h2 className="mt-3 text-xl font-black">ANALİZ YORUMU</h2><div className="mt-5 border-l-2 border-[#9966CC] pl-4"><p className="text-sm leading-7 text-[#A7A3B3]">{commentary || "Bu analiz için yorum bulunmuyor."}</p></div></section>
-              <section className="border border-[#2C3444] bg-[#151818] p-6"><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">VERIFICATION / QUESTION</p><h2 className="mt-3 text-xl font-black">BELİRSİZLİK KONTROLÜ</h2><p className="mt-5 text-sm leading-6 text-[#A7A3B3]">{demo ? "Örnek soru: Yüksek dolap duvara sabitli mi?" : "Yüksek dolap duvara sabitli mi? (Örnek soru; API soruları henüz bağlanmadı.)"}</p><div className="mt-5 flex gap-3">{(["evet", "hayir"] as const).map((answer) => <button key={answer} type="button" onClick={() => setAnchored(answer)} className={`border px-5 py-3 text-xs font-bold transition ${anchored === answer ? "border-[#9966CC] bg-[#2A2140]" : "border-[#636E85] hover:border-[#9966CC]"}`}>{answer === "evet" ? "EVET" : "HAYIR"}</button>)}</div>{anchored && <p className="mt-4 text-xs leading-6 text-[#E0A73A]">Yanıt bu ekranda kaydedildi. Risk yeniden hesaplaması henüz API'ye bağlı değil.</p>}</section>
+              <section className="border border-[#2C3444] bg-[#151818] p-6"><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">VERIFICATION / QUESTION</p><h2 className="mt-3 text-xl font-black">BELİRSİZLİK KONTROLÜ</h2>{demo ? <p className="mt-5 text-sm leading-6 text-[#A7A3B3]">Demo modunda soru sorulmaz. Gerçek analizde sabitlenmesi belirsiz eşyalar burada sorulur ve cevaplar skora işlenir.</p> : questions.length === 0 ? <p className="mt-5 text-sm leading-6 text-[#A7A3B3]">Sabitlenmesi belirsiz eşya bulunmadı.</p> : <div className="mt-5 space-y-5">{questions.map((question) => <div key={question.id}><p className="text-sm leading-6 text-[#A7A3B3]">{question.question}</p><div className="mt-3 flex flex-wrap gap-2">{(["evet", "hayir", "bilmiyorum"] as const).map((value) => <button key={value} type="button" disabled={rescoring} aria-pressed={answers[question.itemId] === value} onClick={() => answerQuestion(question.itemId, value)} className={`border px-4 py-2 text-xs font-bold transition disabled:cursor-wait disabled:opacity-60 ${answers[question.itemId] === value ? "border-[#9966CC] bg-[#2A2140]" : "border-[#636E85] hover:border-[#9966CC]"}`}>{value === "evet" ? "EVET" : value === "hayir" ? "HAYIR" : "BİLMİYORUM"}</button>)}</div></div>)}</div>}{rescoring && <p className="mt-4 text-xs leading-6 text-[#9966CC]">Skor yeniden hesaplanıyor…</p>}{rescoreError && <p className="mt-4 text-xs leading-6 text-[#F0676B]">{rescoreError}</p>}{!rescoring && !rescoreError && Object.keys(answers).length > 0 && <p className="mt-4 text-xs leading-6 text-[#3FB27F]">Cevaplarınız simülasyona işlendi; skor, riskler ve 3D sahne güncellendi.</p>}</section>
             </div>
           </div>
         )}

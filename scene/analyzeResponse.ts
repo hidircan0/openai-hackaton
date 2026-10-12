@@ -59,6 +59,8 @@ export type AnalyzeResponse = {
     total: number;
   };
   commentary: { roomComment: string };
+  /** Sabitlenmesi belirsiz eşyalar için kullanıcı soruları; cevaplar POST /api/rescore ile skora işlenir. */
+  questions: Array<{ id: string; itemId: string; question: string }>;
   riskLevelScale: Record<string, string>;
   note: string;
 };

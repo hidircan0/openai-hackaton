@@ -13,6 +13,8 @@ GRAVITY = 9.81
 FIXED_STEP = 1 / 120
 RECORD_EVERY = 6  # 20 poses per simulated second
 ROOM_WALL_THICKNESS_M = 0.10
+# Ground acceleration that tears an unanchored wall-mounted item off its hook.
+WALL_HOOK_BREAK_G = 0.30
 MATERIALS: dict[str, tuple[float, float]] = {
     "bookcase": (250, 0.50), "wardrobe": (150, 0.50), "cabinet": (150, 0.50),
     "shelf": (120, 0.50), "refrigerator": (180, 0.45), "tv": (150, 0.40),
@@ -88,9 +90,10 @@ def _make_item(client: int, item: ItemInput) -> tuple[int, float]:
 
 
 def _pga_g(intensity: int) -> float:
-    # Mildly favor overturning while keeping the strongest input bounded.
-    # Calibration range: 0.055g at level 1 through 0.55g at level 9.
-    return 0.055 + (intensity - 1) * (0.495 / 8)
+    # Calibration range: 0.05g at level 1 through 0.80g at level 9. A 60 cm deep,
+    # 200 cm tall wardrobe needs about 0.3g to overturn, so tall unanchored
+    # furniture only slides at moderate levels and tips at the strongest ones.
+    return 0.05 + (intensity - 1) * (0.75 / 8)
 
 
 def _acceleration(t: float, duration: float, pga: float) -> tuple[float, float]:
@@ -221,11 +224,18 @@ def simulate(request: SimulationRequest) -> dict[str, Any]:
         id_to_body: dict[str, int] = {}
         masses: dict[int, float] = {}
         half_extents: dict[str, list[float]] = {}
+        wall_hooks: list[int] = []
         for item in sorted(request.items, key=lambda value: value.id):
             body, mass = _make_item(client, item)
             body_to_id[body] = item.id
             id_to_body[item.id] = body
             masses[body] = mass
+            if item.wallMounted and mass > 0:
+                # Without a hook the item would start in mid-air and drop at t=0.
+                wall_hooks.append(bullet.createConstraint(
+                    body, -1, -1, -1, bullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], _item_center(item),
+                    physicsClientId=client,
+                ))
             half_extents[item.id] = [
                 _metres(item.dimensions.widthCm) / 2,
                 _metres(item.dimensions.depthCm) / 2,
@@ -243,6 +253,10 @@ def simulate(request: SimulationRequest) -> dict[str, Any]:
         for step in range(steps):
             t = step * FIXED_STEP
             accel_x, accel_y = _acceleration(t, duration, pga)
+            if wall_hooks and math.hypot(accel_x, accel_y) > WALL_HOOK_BREAK_G * GRAVITY:
+                for constraint in wall_hooks:
+                    bullet.removeConstraint(constraint, physicsClientId=client)
+                wall_hooks.clear()
             for body, mass in masses.items():
                 if mass <= 0:
                     continue

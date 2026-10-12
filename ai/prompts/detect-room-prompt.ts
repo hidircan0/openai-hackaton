@@ -127,6 +127,7 @@ Adım 2 · type: Yalnızca şu değerlerden biri:
   bookcase (kitaplık), wardrobe (gardırop), cabinet (dolap, komodin, şifonyer, dosya dolabı), shelf (raf, metal raf, duvar rafı), tv (televizyon, monitör), mirror (ayna), glass (cam, vitrin, camlı dolap kapağı), desk (masa, çalışma masası, sıra), chair (sandalye, koltuk), sofa (kanepe), refrigerator (buzdolabı), stack (üst üste istif, koli yığını), bed (yatak), cable (yerde kablo), extinguisher (yangın söndürücü).
   - Bu listede olmayan küçük eşyaları (kitap, bardak, saksı, lamba, çanta) AYRI KAYIT OLARAK EKLEME. Bir dolabın ya da rafın üstündeki ağır ya da kırılır eşyalar, o dolabın hasHeavyOrFragileLoad alanına işlenir.
   - Kapıları items'a EKLEME; kapılar yalnızca room.exits'e yazılır.
+  - Pencere camlarını, kapı camlarını ve duvarın parçası olan camları items'a EKLEME; glass yalnızca serbest duran cam panel, vitrin ya da camlı dolap içindir.
 Adım 3 · before.footprint: Kuşbakışı taban dikdörtgeni {x1, y1, x2, y2}. Kurallar: x1 < x2, y1 < y2, 0 ≤ x1, x2 ≤ widthCm, 0 ≤ y1, y2 ≤ depthCm. Tahminin oda dışına taşıyorsa eşyayı oda sınırına sığacak şekilde küçült.
 Adım 4 · before.bottomZ ve before.topZ: Yerdeki eşyada bottomZ = 0. Duvara asılı eşyada bottomZ > 0 (eşyanın alt kenarının yerden yüksekliği). topZ = bottomZ + eşyanın yüksekliği ve topZ ≤ heightCm.
 Adım 5 · dimensions: widthCm = x2 − x1, depthCm = y2 − y1, heightCm = topZ − bottomZ. Bu üç değer footprint ve z ile BİREBİR aynı olmalı; backend 1 cm'den büyük farkı reddeder.

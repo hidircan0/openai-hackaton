@@ -37,8 +37,9 @@ This is an approximate object-level simulation, not a structural assessment or a
 ```
 
 - All lengths and positions are in centimeters. `anchored` is explicitly supplied by the user for every item.
+- Optional `wallMounted` (default `false`) marks an item hung on a wall (mirror, wall TV). An unanchored wall-mounted item starts on a hook and falls only after ground acceleration exceeds `0.30g`; an anchored one stays fixed.
 - `criticalZones` comes from the upstream analysis and includes each region's type, rectangular bounds, and penalty points. Supported types are `bed`, `work_area`, and `exit`.
-- `intensity` is an integer in `[1, 9]`; `durationSeconds` is an integer in `[5, 60]`. The current mild overturning calibration maps intensity linearly to PGA from `0.055g` through `0.55g`, with angular damping to limit excessive tumbling; values are simulation parameters, not a measured earthquake scale.
+- `intensity` is an integer in `[1, 9]`; `durationSeconds` is an integer in `[5, 60]`. The calibration maps intensity linearly to PGA from `0.05g` through `0.80g`, with angular damping to limit excessive tumbling: tall unanchored furniture (a 60 cm deep, 200 cm wardrobe needs about `0.3g`) slides at moderate levels and tips at the strongest ones. Values are simulation parameters, not a measured earthquake scale.
 - The response contains `items[].outcome`, `items[].after`, and `items[].impact`. `impact.hit` and `impact.hitZones` describe overlap with `bed` / `work_area` regions by a tipped or fallen item's final footprint; the `exit` corridor is evaluated separately by R4. `impact.hitItemIds` contains IDs of other furniture physically struck by that item, or `null` if there were no such contacts.
 - A struck item also has `wasHit: true` and `hitByItemIds` containing the falling item's ID(s). Otherwise `wasHit` is false and `hitByItemIds` is `null`.
 - A room-level `impact.hit` and `impact.itemIds` summarize all impacted furniture IDs. `itemIds` is `null` when no furniture item was hit. Floor and room-wall contacts are not included in this furniture collision list.

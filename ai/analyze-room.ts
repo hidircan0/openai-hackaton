@@ -15,18 +15,37 @@ type PhysicsResult = {
   safetyScore: number;
   penalties: Omit<AnalyzeResponse["penalties"], "impacts"> & { impacts: Array<{ zone: string; itemId: string | null; points: number; rule?: string }> };
 };
+export type AnchoringAnswer = "evet" | "hayir" | "bilmiyorum";
+
 const level = (n: number) => n >= 20 ? [5, "TOLERE EDİLEMEZ"] : n >= 15 ? [4, "YÜKSEK"] : n >= 8 ? [3, "ORTA"] : n >= 2 ? [2, "DÜŞÜK"] : [1, "ÖNEMSİZ"];
 const round = (n: number, digits: number) => +n.toFixed(digits);
 // Kayma dışı tipler (cem/kayma_skoru/esya_tipleri.py); en az bir eşya bunların dışında olmalı.
 const SLIDING_EXCLUDED_TYPES = new Set(["bed", "door", "cable", "extinguisher"]);
+// Kullanıcıya gösterilen metinlerde Türkçe adlar (cem/kayma_skoru/esya_tipleri.py ile aynı liste).
+const TURKISH_NAMES: Record<string, string> = {
+  bookcase: "Kitaplık", wardrobe: "Gardırop", cabinet: "Dolap", shelf: "Raf", tv: "Televizyon", mirror: "Ayna", glass: "Cam",
+  desk: "Masa", chair: "Sandalye", sofa: "Kanepe", refrigerator: "Buzdolabı", stack: "İstif", bed: "Yatak", door: "Kapı",
+  cable: "Kablo", extinguisher: "Yangın söndürücü",
+};
+const OUTCOME_TEXT: Record<Item["simulationOutcome"], string> = { tipped: "devrildi", fell: "düştü", slid: "kaydı", stationary: "yerinde kaldı" };
+const ANCHORED_TEXT: Record<Item["anchored"], string> = { yes: "sabitlenmiş", no: "sabitlenmemiş", uncertain: "sabitlenip sabitlenmediği belirsiz" };
+const ZONE_TEXT: Record<string, string> = { bed: "yatak alanına", work_area: "çalışma alanına" };
+const ANSWER_TO_ANCHORED: Record<AnchoringAnswer, Item["anchored"]> = { evet: "yes", hayir: "no", bilmiyorum: "uncertain" };
+const MAX_QUESTIONS = 5;
+// Bu yüksekliğin altındaki eşyalar devrilmez; sabitlenmeleri sorulmaz (carpan_hesapla.py eşiğiyle aynı).
+const QUESTION_MIN_HEIGHT_CM = 120;
 // /api/analyze en fazla 120 sn çalışır (route maxDuration); tüm adımlar bu bütçeye sığdırılır.
 const TIME_BUDGET_MS = 110_000;
 const DETECTION_TIMEOUT_MS = 60_000;
 const SIMULATION_TIMEOUT_MS = 55_000;
 const COMMENTARY_TIMEOUT_MS = 18_000;
 const MIN_COMMENTARY_MS = 5_000;
+const RESCORE_TIMEOUT_MS = 50_000;
 
 export class SimulationRequestError extends Error {}
+export class RescoreInputError extends Error {}
+
+const turkishName = (item: { type: string; id: string }) => `${TURKISH_NAMES[item.type] ?? item.type} (${item.id})`;
 
 async function runPhysics(detection: Detection, criticalZones: AnalyzeResponse["criticalZones"], intensity: number, durationSeconds: number, timeoutMs: number): Promise<PhysicsResult> {
   let response: Response;
@@ -45,6 +64,7 @@ async function runPhysics(detection: Detection, criticalZones: AnalyzeResponse["
           },
           before: { footprint: item.before.footprint, bottomZ: item.before.bottomZ },
           anchored: item.anchored === "yes",
+          wallMounted: item.wallMounted,
         })),
         criticalZones,
         earthquake: { intensity, durationSeconds },
@@ -111,13 +131,29 @@ function makeZones(detection: Detection): AnalyzeResponse["criticalZones"] {
   return zones;
 }
 
-export async function analyzeRoom(photo: File, profile: string, intensity: number, durationSeconds: number): Promise<AnalyzeResponse> {
-  const startedAt = Date.now();
-  const remainingMs = () => TIME_BUDGET_MS - (Date.now() - startedAt);
-  getSimulationServiceUrl(); // Modele istek atmadan önce servis ayarını doğrula.
-  const detection = checkDetection(await detectRoom(photo, profile, Math.min(DETECTION_TIMEOUT_MS, remainingMs())));
+/** Sabitlenmesi belirsiz, devrilebilecek (≥ 120 cm) ya da duvara asılı eşyalar için en yüksekten başlayarak soru üretir. */
+function makeQuestions(items: Item[]): AnalyzeResponse["questions"] {
+  return items
+    .filter((item) => item.anchored === "uncertain" && !SLIDING_EXCLUDED_TYPES.has(item.type) && (item.wallMounted || item.dimensions.heightCm >= QUESTION_MIN_HEIGHT_CM))
+    .sort((a, b) => b.dimensions.heightCm - a.dimensions.heightCm)
+    .slice(0, MAX_QUESTIONS)
+    .map((item) => ({
+      id: `q-${item.id}`,
+      itemId: item.id,
+      question: item.wallMounted ? `${turkishName(item)} duvara sağlam monte edilmiş mi?` : `${turkishName(item)} duvara sabitlenmiş mi?`,
+    }));
+}
+
+/** GPT yorumu gelmezse de risk satırında anlamlı bir gerekçe kalsın diye verilerden üretilir. */
+function describeRisk(item: Item, zone: string | null): string {
+  const zoneText = zone && ZONE_TEXT[zone] ? `; izi ${ZONE_TEXT[zone]} düşüyor` : "";
+  return `${TURKISH_NAMES[item.type] ?? item.type}, ${Math.round(item.dimensions.heightCm)} cm yüksekliğinde ve ${ANCHORED_TEXT[item.anchored]}; simülasyonda ${OUTCOME_TEXT[item.simulationOutcome]}${zoneText}.`;
+}
+
+/** Algılanan odayı simüle eder ve yanıtı kurar; skor Python yanıtından gelir, GPT yorumu eklenmez. */
+async function simulateAndScore(detection: Detection, profile: string, intensity: number, durationSeconds: number, timeoutMs: number): Promise<AnalyzeResponse> {
   const criticalZones = makeZones(detection);
-  const physics = await runPhysics(detection, criticalZones, intensity, durationSeconds, Math.min(SIMULATION_TIMEOUT_MS, remainingMs()));
+  const physics = await runPhysics(detection, criticalZones, intensity, durationSeconds, timeoutMs);
   const physicsById = new Map(physics.items.map((item) => [item.id, item]));
   const items: AnalyzeResponse["items"] = detection.items.map((item) => {
     const simulated = physicsById.get(item.id);
@@ -141,29 +177,75 @@ export async function analyzeRoom(photo: File, profile: string, intensity: numbe
     const severity = zone === "bed" ? 5 : zone === "work_area" ? 4 : 2;
     const riskScore = likelihood * severity;
     const [n, label] = level(riskScore);
-    return { id: `risk-${item.id}`, itemId: item.id, rule: item.triggeredRules[0] ?? "R1", hazard: `${item.type} için sarsıntı sırasında hareket veya düşme riski.`, zone, likelihood, severity, riskScore, level: n as number, levelLabel: label as string, reason: "Gerekçe hazırlanıyor.", recommendedAction: item.fragile ? "Cam veya aynayı yatak ve çalışma alanlarından uzakta güvenle sabitleyin." : "Yüksek eşyayı uygun bağlantı elemanlarıyla duvara sabitleyin.", owner: profile === "isg" ? "İSG uzmanı" : "Kullanıcı", due: "Öncelikli", approvalStatus: "pending" };
+    return { id: `risk-${item.id}`, itemId: item.id, rule: item.triggeredRules[0] ?? "R1", hazard: `${TURKISH_NAMES[item.type] ?? item.type} sarsıntıda kayabilir, devrilebilir veya düşebilir.`, zone, likelihood, severity, riskScore, level: n as number, levelLabel: label as string, reason: describeRisk(item, zone), recommendedAction: item.fragile ? "Cam veya aynayı yatak ve çalışma alanlarından uzakta güvenle sabitleyin." : "Yüksek eşyayı uygun bağlantı elemanlarıyla duvara sabitleyin.", owner: profile === "isg" ? "İSG uzmanı" : "Kullanıcı", due: "Öncelikli", approvalStatus: "pending" };
   });
-  const analysis: AnalyzeResponse = {
+  return {
     profile, simulation: physics.simulation,
     safetyScore: physics.safetyScore, rawSafetyScore: round(physics.rawSafetyScore, 2), room: detection.room,
     items, criticalZones, risks, penalties,
     commentary: { roomComment: "Analiz yorumu hazırlanıyor." },
+    questions: makeQuestions(items),
     riskLevelScale: { "1": "Önemsiz", "2": "Düşük", "3": "Orta", "4": "Yüksek", "5": "Tolere edilemez" },
     note: "PyBullet tabanlı yaklaşık eşya hareketi simülasyonu. Fotoğraftan çıkarılan ölçüler tahminidir; yapısal deprem dayanımı analizi değildir.",
   };
-  // Yorum için yeterli süre kalmadıysa atlanır; skor ve riskler yine döner.
-  const commentaryMs = Math.min(COMMENTARY_TIMEOUT_MS, remainingMs());
-  if (commentaryMs < MIN_COMMENTARY_MS) {
-    console.error(`OpenAI yorumu atlandı: süre bütçesinde ${commentaryMs} ms kaldı.`);
-    return analysis;
-  }
+}
+
+async function addCommentary(analysis: AnalyzeResponse, timeoutMs: number): Promise<void> {
+  const itemById = new Map(analysis.items.map((item) => [item.id, item]));
   try {
-    const commentary = await writeCommentary(profile, { safetyScore: analysis.safetyScore, risks: analysis.risks.map(({ itemId, hazard, zone, likelihood, severity, riskScore, recommendedAction }) => ({ itemId, hazard, zone, likelihood, severity, riskScore, recommendedAction })) }, commentaryMs);
+    const commentary = await writeCommentary(analysis.profile, {
+      safetyScore: analysis.safetyScore,
+      risks: analysis.risks.map(({ itemId, hazard, zone, likelihood, severity, riskScore, recommendedAction }) => {
+        const item = itemId ? itemById.get(itemId) : undefined;
+        return { itemId, type: item?.type, heightCm: item?.dimensions.heightCm, anchored: item?.anchored, outcome: item?.simulationOutcome, hazard, zone, likelihood, severity, riskScore, recommendedAction };
+      }),
+    }, timeoutMs);
     analysis.commentary.roomComment = commentary.roomComment;
     analysis.risks = analysis.risks.map((risk) => {
       const generated = commentary.riskComments.find((entry) => entry.itemId === risk.itemId);
       return generated ? { ...risk, reason: generated.reason, recommendedAction: generated.recommendedAction } : risk;
     });
   } catch (error) { console.error("OpenAI yorum üretimi başarısız:", error); }
+}
+
+export async function analyzeRoom(photo: File, profile: string, intensity: number, durationSeconds: number): Promise<AnalyzeResponse> {
+  const startedAt = Date.now();
+  const remainingMs = () => TIME_BUDGET_MS - (Date.now() - startedAt);
+  getSimulationServiceUrl(); // Modele istek atmadan önce servis ayarını doğrula.
+  const detection = checkDetection(await detectRoom(photo, profile, Math.min(DETECTION_TIMEOUT_MS, remainingMs())));
+  const analysis = await simulateAndScore(detection, profile, intensity, durationSeconds, Math.min(SIMULATION_TIMEOUT_MS, remainingMs()));
+  // Yorum için yeterli süre kalmadıysa atlanır; skor ve riskler yine döner.
+  const commentaryMs = Math.min(COMMENTARY_TIMEOUT_MS, remainingMs());
+  if (commentaryMs < MIN_COMMENTARY_MS) {
+    console.error(`OpenAI yorumu atlandı: süre bütçesinde ${commentaryMs} ms kaldı.`);
+    return analysis;
+  }
+  await addCommentary(analysis, commentaryMs);
+  return analysis;
+}
+
+/** Kullanıcının "sabit mi" cevaplarıyla odayı GPT'ye gitmeden yeniden simüle eder. */
+export async function rescoreRoom(previous: AnalyzeResponse, answers: Record<string, AnchoringAnswer>): Promise<AnalyzeResponse> {
+  const itemIds = new Set(previous.items.map((item) => item.id));
+  for (const itemId of Object.keys(answers)) {
+    if (!itemIds.has(itemId)) throw new RescoreInputError(`Cevaplanan eşya analizde yok: ${itemId}`);
+  }
+  const detection: Detection = {
+    room: previous.room,
+    items: previous.items.map(({ id, type, before, dimensions, fallDirection, anchored, wallMounted, hasHeavyOrFragileLoad, fragile, confidence }) => ({
+      id, type, before, dimensions, fallDirection, wallMounted, hasHeavyOrFragileLoad, fragile, confidence,
+      anchored: answers[id] ? ANSWER_TO_ANCHORED[answers[id]] : anchored,
+    })),
+  };
+  const analysis = await simulateAndScore(checkDetection(detection), previous.profile, previous.simulation.intensity, previous.simulation.durationSeconds, RESCORE_TIMEOUT_MS);
+  // GPT'ye tekrar gidilmez: oda yorumu korunur; sabitlenme durumu değişmeyen eşyaların GPT gerekçeleri taşınır.
+  const anchoredBefore = new Map(previous.items.map((item) => [item.id, item.anchored]));
+  const previousRisks = new Map(previous.risks.map((risk) => [risk.itemId, risk]));
+  analysis.commentary = { roomComment: previous.commentary.roomComment };
+  analysis.risks = analysis.risks.map((risk) => {
+    const old = previousRisks.get(risk.itemId);
+    const unchanged = risk.itemId !== null && anchoredBefore.get(risk.itemId) === analysis.items.find((item) => item.id === risk.itemId)?.anchored;
+    return old && unchanged ? { ...risk, reason: old.reason, recommendedAction: old.recommendedAction } : risk;
+  });
   return analysis;
 }

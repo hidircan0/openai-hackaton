@@ -58,6 +58,8 @@ class ItemInput(StrictModel):
     dimensions: Dimensions
     before: BeforePose
     anchored: bool
+    # Hung on a wall (mirror, wall TV); an unanchored one stays on its hook until strong shaking.
+    wallMounted: bool = False
 
     @field_validator("type")
     @classmethod

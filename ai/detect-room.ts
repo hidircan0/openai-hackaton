@@ -65,7 +65,7 @@ export async function writeCommentary(profile: string, calculated: Record<string
     name: "room_commentary",
     schema: commentarySchema,
     timeoutMs,
-    instructions: "Türkçe, kısa ve anlaşılır gerekçe/önlem yaz. Yalnızca verilen riskleri açıkla. Skor ve tüm sayısal hesaplar sabittir; yeni sayı, skor veya risk ekleme, hiçbir sayısal değeri değiştirme. Fotoğrafta görünmeyen bilgiyi uydurma. İSG profili profesyonel, ev/okul profili sade dille yazılsın.",
+    instructions: "Türkçe yaz. roomComment: 2–3 cümle; en riskli 1–2 eşyayı Türkçe adıyla ve simülasyonda ne olduğunu (devrildi, düştü, kaydı, yerinde kaldı) belirterek açıkla, en önemli önlemi söyle. Skor sayısını yazma; skor kullanıcının cevaplarıyla değişebilir. riskComments: her risk için bir cümle gerekçe (eşyanın yüksekliği, sabitlenme durumu, simülasyon sonucu, düştüğü bölge) ve bir cümle somut önlem (L-demir, kayış, vida, yer değiştirme). Yalnızca verilen riskleri açıkla; yeni sayı, skor veya risk ekleme, hiçbir sayısal değeri değiştirme. Fotoğrafta görünmeyen bilgiyi uydurma. İSG profili profesyonel, ev/okul profili sade dille yazılsın.",
     input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify({ profile, ...calculated }) }] }],
   });
 }
