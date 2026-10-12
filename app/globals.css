@@ -1,0 +1,67 @@
+﻿@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  background: #0B0C10;
+  color: #F2F0F5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #0B0C10;
+  color: #F2F0F5;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+
+/* SkyEngineX — Aurora Brand System */
+:root {
+  --sx-obsidian: #0b0c10;
+  --sx-raised: #151818;
+  --sx-steel: #1f2633;
+  --sx-amethyst: #9966cc;
+  --sx-amethyst-hover: #b28ddb;
+  --sx-line: #2c3444;
+  --sx-ink: #f2f0f5;
+  --sx-muted: #a7a3b3;
+  --sx-success: #3fb27f;
+  --sx-warning: #e0a73a;
+  --sx-danger: #f0676b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--sx-obsidian);
+  color: var(--sx-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #9966cc;
+  color: #0b0c10;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
