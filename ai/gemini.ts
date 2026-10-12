@@ -44,7 +44,7 @@ export async function requestStructuredJson<T>(args: {
 }
 
 export function strictObject(properties: Record<string, unknown>) {
-  return { type: "object", properties, required: Object.keys(properties), propertyOrdering: Object.keys(properties), additionalProperties: false };
+  return { type: "object", properties, required: Object.keys(properties), propertyOrdering: Object.keys(properties) };
 }
 
 function toGeminiSchema(value: unknown): unknown {
