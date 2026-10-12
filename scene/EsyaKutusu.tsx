@@ -28,7 +28,12 @@ export function EsyaKutusu({ esya, oda, riskli, deprem, siralama = 0 }: {
     const sz = fromSize[1] + (toSize[1] - fromSize[1]) * p;
     ref.current.scale.set(sx, (esya.h + ((esya.t1?.h ?? esya.h) - esya.h) * p) * 0.01, sz);
     // A brief lean sells the fall; the endpoint remains exactly the engine's t1 box.
-    ref.current.rotation.z = riskli && p > 0 && p < 1 ? -Math.sin(p * Math.PI) * Math.PI / 3 : 0;
+    const tilt = riskli && p > 0 && p < 1 ? Math.sin(p * Math.PI) * Math.PI / 2 : 0;
+    // Source +y points toward world -z, so y-axis falls rotate around world x.
+    if (esya.yon === "+y") ref.current.rotation.set(-tilt, 0, 0);
+    else if (esya.yon === "-y") ref.current.rotation.set(tilt, 0, 0);
+    else if (esya.yon === "+x") ref.current.rotation.set(0, 0, -tilt);
+    else ref.current.rotation.set(0, 0, tilt);
   });
 
   return <group ref={ref} position={[x, y, z]}>
