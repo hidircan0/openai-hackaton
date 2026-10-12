@@ -1,5 +1,7 @@
 # Motor planı v2 · Fizik tabanlı sallama simülasyonu
 
+> **Current implementation:** See [motor-plan-v3.md](./motor-plan-v3.md). It supersedes v2 where the engine/runtime, intensity and duration inputs, and collision response differ. This file is retained as design history.
+
 **Sahibi:** Ömer · **Branch:** `feat/engine` · Kurallar: [../SKILL.md](../SKILL.md)
 **Karar:** 12 Ekim 2026, ekip kural 7'yi "fizik motoru yok" yerine "fizik motoru yalnızca `/engine`'de, sunucuda" olarak değiştirdi.
 **v2:** Cem ile netleşen kararlar işlendi. Değişen yerler **[v2]** ile işaretli.

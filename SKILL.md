@@ -20,10 +20,10 @@ Sarsıntı tek bir oda fotoğrafından deprem anında devrilebilecek eşyaları,
 1. **Skoru kod hesaplar.** Model hiçbir puan üretmez ve değiştirmez. Modelin ürettiği tek sayılar, algılamadaki tahmini boyut ve koordinatlardır.
 2. **GPT-6 Sol (`gpt-6-sol`, Responses API) yalnızca iki yerde çağrılır:** algılama (`/ai`) ve yorum (`/ai`). Başka model çağrısı ekleme.
 3. **Yorum çağrısının çıktı şemasında skor ya da puan alanı yoktur.** Skor prompt'a sabit değer olarak verilir.
-4. **Son konumları (t1) yalnızca `/engine` hesaplar.** `/scene` kendi fizik hesabını yapmaz, sadece t0'dan t1'e animasyon yapar.
+4. **Son konumları (t1) yalnızca Ömer'in Python simülasyon servisi hesaplar.** `/scene` kendi fizik hesabını yapmaz; sunucudan gelen hareket izlerini gösterir.
 5. **Profil davranışı `/profiles` altındaki ayar dosyalarıyla değişir.** Kodda `if (profil === "ev")` gibi dallanma yok.
 6. **Model çıktısı her zaman şemaya göre doğrulanır.** Doğrulanamazsa hata döner; değer uydurulmaz, varsayılan sessizce doldurulmaz.
-7. **Fizik motoru yok.** Devrilme, eşyanın ön alt kenarı etrafında 90° dönmesidir.
+7. **Fizik motoru yalnızca Ömer'in Python simülasyon servisinde çalışır.** Motor PyBullet kullanır; sahnede veya tarayıcıda fizik hesabı yapılmaz. Bu simülasyon eşya hareketlerinin yaklaşık modelidir, gerçek deprem ya da bina analizi değildir.
 8. **Arayüz metinleri Türkçe**, renkler SkyEngineX token'larından.
 9. **Küçük, odaklı değişiklik.** Testler geçmeden merge yok; `main` her an deploy edilebilir.
 10. **Başkasının klasörüne dokunmadan önce sor** (sahiplik tablosu aşağıda).
@@ -46,7 +46,7 @@ Sarsıntı tek bir oda fotoğrafından deprem anında devrilebilecek eşyaları,
 |---|---|---|---|
 | `/schema` | Cem + Ömer | `main` | Veri sözleşmesinin tek kaynağı; değişiklik sadece sync anlarında |
 | `/ai` | Cem | `feat/ai` | Algılama ve yorum çağrıları, prompt'lar, şema doğrulama |
-| `/engine` | Ömer | `feat/engine` | Bölgeler, sallama, kayma, çarpma, skor, O/Ş, matris; saf fonksiyonlar + testler |
+| `/engine` ve `/omer/simulation` | Ömer | `feat/engine` | Python/PyBullet fizik simülasyonu, API, bölgeler ve skor bağlantısı |
 | `/profiles` | Ömer | `feat/engine` | `isg`, `ev`, `okul` ayar dosyaları |
 | `/api` | Ömer | `feat/engine` | `POST /api/analyze` |
 | `/scene` | Hıdırcan | `feat/scene` | react-three-fiber sahnesi, animasyon, bölge çizimi |
@@ -221,7 +221,7 @@ Kitaplığın devrilme izi y 40–230 aralığında yatak bölgesine (y ≥ 130)
 ## Yapma listesi
 
 - Skoru ya da O/Ş'yi modele hesaplatma.
-- Fizik motoru, model eğitimi ya da ince ayar ekleme.
+- Simülasyonu gerçek deprem fiziği veya bina sağlamlığı analizi olarak tanıtma; model eğitimi ya da ince ayar ekleme.
 - Bina sağlamlığı ya da yapısal analiz iddiasında bulunma.
 - "Makine öğrenimi" ifadesini kayma hesabı için kullanma; doğrusu "normalize edilmiş kayma hesabı".
 - Test ya da demo verisi uydurup gerçekmiş gibi gösterme; önceden analiz edilmiş bir örnek kullanılıyorsa sorulduğunda açıkça söyle.
