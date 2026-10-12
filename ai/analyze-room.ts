@@ -16,7 +16,7 @@ const clamp = (n: number) => Math.max(0, Math.min(100, n));
 export class SimulationConfigurationError extends Error {}
 export class SimulationRequestError extends Error {}
 
-async function runPhysics(detection: Detection, intensity: number, durationSeconds: number): Promise<PhysicsResult> {
+async function runPhysics(detection: Detection, criticalZones: AnalyzeResponse["criticalZones"], intensity: number, durationSeconds: number): Promise<PhysicsResult> {
   const serviceUrl = process.env.SIMULATION_SERVICE_URL;
   if (!serviceUrl) throw new SimulationConfigurationError("SIMULATION_SERVICE_URL tanımlı değil.");
   const response = await fetch(`${serviceUrl.replace(/\/$/, "")}/simulate`, {
@@ -32,6 +32,7 @@ async function runPhysics(detection: Detection, intensity: number, durationSecon
         before: { footprint: item.before.footprint, bottomZ: item.before.bottomZ },
         anchored: item.anchored === "yes",
       })),
+      criticalZones,
       earthquake: { intensity, durationSeconds },
     }),
     signal: AbortSignal.timeout(55_000), cache: "no-store",
@@ -66,8 +67,8 @@ function makeZones(detection: Detection): AnalyzeResponse["criticalZones"] {
 export async function analyzeRoom(photo: File, profile: string, intensity: number, durationSeconds: number): Promise<AnalyzeResponse> {
   if (!process.env.SIMULATION_SERVICE_URL) throw new SimulationConfigurationError("SIMULATION_SERVICE_URL tanımlı değil.");
   const detection = await detectRoom(photo, profile);
-  const physics = await runPhysics(detection, intensity, durationSeconds);
   const criticalZones = makeZones(detection);
+  const physics = await runPhysics(detection, criticalZones, intensity, durationSeconds);
   const physicsById = new Map(physics.items.map((item) => [item.id, item]));
   const { widthCm: Lx, depthCm: Ly, heightCm: Lz } = detection.room.dimensions;
   const baseItems = detection.items.map((item) => {

@@ -76,7 +76,7 @@ class Earthquake(StrictModel):
 class SimulationRequest(StrictModel):
     room: Room
     items: list[ItemInput] = Field(min_length=1, max_length=25)
-    criticalZones: list[CriticalZone] = Field(min_length=1, max_length=50)
+    criticalZones: list[CriticalZone] = Field(default_factory=list, max_length=50)
     earthquake: Earthquake
 
     @model_validator(mode="after")

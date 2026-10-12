@@ -1,5 +1,6 @@
 import "server-only";
 import { requestStructuredJson, strictObject } from "./openai";
+import { buildDetectRoomInstructions, DETECT_ROOM_USER_TEXT } from "./prompts/detect-room-prompt";
 
 export type Detection = {
   room: { type: string; dimensions: { widthCm: number; depthCm: number; heightCm: number }; exits: Array<{ type: string; wall: string; startCm: number; endCm: number; widthCm: number }>; warnings: string[] };
@@ -33,15 +34,9 @@ export async function detectRoom(photo: File, profile: string): Promise<Detectio
     name: "room_detection",
     schema,
     timeoutMs: 32_000,
-    instructions: [
-      "Oda fotoğrafını inceleyip yalnızca görülebilen oda, çıkış ve eşyaları algıla. JSON şeması ölçü birimi santimetre olan t0 algılama verisidir.",
-      "Oda genişliği, derinliği, yüksekliği ve koordinatları yaklaşık tahminlerdir. Görüntüden anlaşılmayan ölçüler için fotoğrafta görünen standart iç kapıyı yaklaşık 200 cm referans al; belirgin referans yoksa makul tahmini yap ve room.warnings içine belirsizliği yaz.",
-      "Orijin odanın sol/ön köşesi, x genişlik, y derinlik, z yükseklik; tüm tabanlar oda sınırları içinde ve santimetre olmalı. Eşya tiplerini izin verilen enum değerlerinden seç, her eşyanın ID'si benzersiz olsun.",
-      "Sabitleme fotoğrafta açıkça görünmüyorsa anchored=uncertain. Fotoğrafta görünmeyen eşya, kapı veya özellik uydurma. Skor, risk, t1, düşme sonucu veya güvenlik iddiası üretme. Sadece algılama alanlarını doldur.",
-      `Analiz profili: ${profile}.`,
-    ].join(" "),
+    instructions: buildDetectRoomInstructions(profile),
     input: [{ role: "user", content: [
-      { type: "input_text", text: "Oda fotoğrafındaki görünür eşyaları, yaklaşık ölçülerini ve t0 koordinatlarını algıla." },
+      { type: "input_text", text: DETECT_ROOM_USER_TEXT },
       { type: "input_image", image_url: dataUrl, detail: "high" },
     ] }],
   });
