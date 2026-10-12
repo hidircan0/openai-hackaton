@@ -4,8 +4,6 @@ import Link from "next/link";
 
 import { useEffect, useRef, useState } from "react";
 
-type Profile = "isg" | "ev" | "okul";
-
 type Stage = "upload" | "loading" | "results";
 
 type Risk = {
@@ -33,13 +31,19 @@ type Risk = {
 type UncertaintyAnswer = "evet" | "hayir" | "bilmiyorum";
 
 type UncertaintyQuestion = {
+
   id: string;
+
   soru: string;
+
   riskId?: string;
+
 };
 
 const demoQuestions: UncertaintyQuestion[] = [
+
   { id: "Q01", riskId: "R01", soru: "Yüksek dolap duvara sabitli mi?" },
+
 ];
 
 const demoRisks: Risk[] = [
@@ -49,16 +53,6 @@ const demoRisks: Risk[] = [
   { id: "R02", tehlike: "Yüksekte bulunan ağır eşya", gerekce: "Düşen nesneler yaralanmaya neden olabilir.", onlem: "Ağır eşyaları alt raflara taşıyın.", olasilik: 3, siddet: 4, skor: 12, seviye: "ORTA", onay: "bekliyor" },
 
   { id: "R03", tehlike: "Açıkta kalan kablo", gerekce: "Tahliye sırasında takılma tehlikesi oluşturabilir.", onlem: "Kabloları koruyucu kanal içinde düzenleyin.", olasilik: 2, siddet: 3, skor: 6, seviye: "DÜŞÜK", onay: "bekliyor" },
-
-];
-
-const profiles: { id: Profile; name: string; description: string }[] = [
-
-  { id: "isg", name: "İŞ YERİ", description: "Profesyonel risk değerlendirmesi" },
-
-  { id: "ev", name: "EV", description: "Yaşam alanı güvenliği" },
-
-  { id: "okul", name: "OKUL", description: "Eğitim ortamı güvenliği" },
 
 ];
 
@@ -104,21 +98,9 @@ function homeRiskLevel(score: number) {
 
 }
 
-function severityColor(score: number) {
-
-  if (score >= 15) return "border-[#F0676B]/40 bg-[#F0676B]/10 text-[#F0676B]";
-
-  if (score >= 8) return "border-[#E0A73A]/40 bg-[#E0A73A]/10 text-[#E0A73A]";
-
-  return "border-[#3FB27F]/40 bg-[#3FB27F]/10 text-[#3FB27F]";
-
-}
-
 export default function AnalysisPage() {
 
-  const [profile, setProfile] = useState<Profile>("isg");
-
-  const [stage, setStage] = useState<Stage>("upload");
+    const [stage, setStage] = useState<Stage>("upload");
 
   const [file, setFile] = useState<File | null>(null);
 
@@ -139,11 +121,8 @@ export default function AnalysisPage() {
   const [error, setError] = useState("");
 
   const [questions, setQuestions] = useState<UncertaintyQuestion[]>([]);
+
   const [answers, setAnswers] = useState<Record<string, UncertaintyAnswer>>({});
-
-  const [editing, setEditing] = useState<string | null>(null);
-
-  const [editText, setEditText] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -163,7 +142,7 @@ export default function AnalysisPage() {
 
     setStage("upload"); setRisks([]); setScore(null); setImprovement(0);
 
-    setCommentary(""); setQuestions([]); setAnswers({}); setError(""); setEditing(null);
+    setCommentary(""); setQuestions([]); setAnswers({}); setError("");
 
   }
 
@@ -195,7 +174,7 @@ export default function AnalysisPage() {
 
       const data = new FormData();
 
-      data.append("photo", file); data.append("profile", profile);
+      data.append("photo", file); data.append("profile", "ev");
 
       const response = await fetch("/api/analyze", { method: "POST", body: data });
 
@@ -236,17 +215,29 @@ export default function AnalysisPage() {
       setCommentary(typeof payload.yorum === "string" ? payload.yorum : "");
 
       // Optional API contract: sorular (or belirsizSorular) is an array of
+
       // { id: string, soru: string, riskId?: string }.
+
       // No example questions are shown for a real API response.
+
       const rawQuestions = payload.sorular ?? payload.belirsizSorular;
+
       if (Array.isArray(rawQuestions)) {
+
         const parsed = rawQuestions.filter((item: unknown): item is UncertaintyQuestion => {
+
           if (!item || typeof item !== "object") return false;
+
           const q = item as Record<string, unknown>;
+
           return typeof q.id === "string" && typeof q.soru === "string" &&
+
             (q.riskId === undefined || typeof q.riskId === "string");
+
         });
+
         setQuestions(parsed);
+
       }
 
       setStage("results");
@@ -264,16 +255,6 @@ export default function AnalysisPage() {
   function approve(id: string) {
 
     setRisks((previous) => previous.map((risk) => risk.id === id ? { ...risk, onay: "onaylandi" } : risk));
-
-  }
-
-  function saveEdit(id: string) {
-
-    if (!editText.trim()) return;
-
-    setRisks((previous) => previous.map((risk) => risk.id === id ? { ...risk, onlem: editText.trim(), onay: "duzenlendi" } : risk));
-
-    setEditing(null);
 
   }
 
@@ -295,7 +276,7 @@ export default function AnalysisPage() {
 
         headers: { "Content-Type": "application/json" },
 
-        body: JSON.stringify({ risks: selected, profile, demo }),
+        body: JSON.stringify({ risks: selected, profile: "ev", demo }),
 
       });
 
@@ -315,7 +296,7 @@ export default function AnalysisPage() {
 
       anchor.href = url;
 
-      anchor.download = `SkyEngineX_Risk_Raporu_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      anchor.download = `SkyEngineX_Risk_Raporu\_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
       document.body.appendChild(anchor);
 
@@ -419,9 +400,9 @@ export default function AnalysisPage() {
 
               <p className="font-mono text-xs tracking-widest text-[#9966CC]">CONFIG / 02</p>
 
-              <h2 className="mt-3 text-2xl font-black">ANALİZ PROFİLİ</h2>
+              <h2 className="mt-3 text-2xl font-black">EV GÜVENLİK ANALİZİ</h2>
 
-              <div className="mt-7 space-y-3">{profiles.map((item) => <button key={item.id} type="button" onClick={() => setProfile(item.id)} className={`w-full border p-4 text-left transition ${profile === item.id ? "border-[#9966CC] bg-[#2A2140]" : "border-[#2C3444] hover:border-[#636E85]"}`}><div className="flex justify-between gap-3"><span className="text-sm font-bold">{item.name}</span><span className="text-[#9966CC]">{profile === item.id ? "●" : "○"}</span></div><p className="mt-2 text-xs text-[#A7A3B3]">{item.description}</p></button>)}</div>
+              <p className="mt-3 text-sm leading-6 text-[#A7A3B3]">Evinizdeki eşyaların deprem sırasında oluşturabileceği riskleri inceleyin ve alınabilecek önlemleri öğrenin.</p>
 
               <label className="mt-7 flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" checked={demo} onChange={(event) => setDemo(event.target.checked)} className="accent-[#9966CC]" />Demo verileriyle çalış</label>
 
@@ -469,9 +450,9 @@ export default function AnalysisPage() {
 
                 { label: "KRİTİK RİSK", value: criticalRisks, color: "#F0676B", detail: "Risk skoru ≥ 15" },
 
-                { label: profile === "ev" ? "İNCELENEN" : "ONAYLANAN", value: approved, color: "#3FB27F", detail: profile === "ev" ? "İncelenen öneri" : "Uzman kontrolünden geçen" },
+                { label: "İNCELENEN", value: approved, color: "#3FB27F", detail: "İncelenen öneri" },
 
-                { label: "BEKLEYEN", value: risks.length - approved, color: "#E0A73A", detail: profile === "ev" ? "Henüz incelenmemiş" : "Henüz onaylanmamış" },
+                { label: "BEKLEYEN", value: risks.length - approved, color: "#E0A73A", detail: "Henüz incelenmemiş" },
 
               ].map((metric) => <div key={metric.label} className="border border-[#2C3444] bg-[#151818] p-5"><p className="font-mono text-[10px] tracking-wider text-[#A7A3B3]">{metric.label}</p><p className="mt-4 text-4xl font-black tracking-tight" style={{ color: metric.color }}>{String(metric.value).padStart(2, "0")}</p><p className="mt-3 text-[11px] text-[#A7A3B3]">{metric.detail}</p></div>)}
 
@@ -485,7 +466,7 @@ export default function AnalysisPage() {
 
                 <div className="flex min-h-[320px] items-center justify-center bg-[#0B0C10] p-4">{preview ? <img src={preview} alt="Analiz edilen mekân fotoğrafı" className="max-h-[430px] w-full object-contain" /> : <p className="text-sm text-[#A7A3B3]">Görüntü bulunamadı.</p>}</div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#2C3444] px-6 py-4"><div><p className="font-mono text-[10px] text-[#9966CC]">ANALYSIS PROFILE</p><p className="mt-1 text-sm font-bold">{profile === "isg" ? "İŞ YERİ" : profile === "ev" ? "EV" : "OKUL"}</p></div><span className="text-xs text-[#A7A3B3]">3D simülasyon entegrasyonu bekleniyor</span></div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#2C3444] px-6 py-4"><div><p className="font-mono text-[10px] text-[#9966CC]">ANALYSIS PROFILE</p><p className="mt-1 text-sm font-bold">EV</p></div><span className="text-xs text-[#A7A3B3]">3D simülasyon entegrasyonu bekleniyor</span></div>
 
               </section>
 
@@ -516,8 +497,6 @@ export default function AnalysisPage() {
               </div>
 
             </div>
-
-{profile === "ev" && (
 
   <section className="border border-[#2C3444] bg-[#151818] p-5 md:p-8">
 
@@ -665,66 +644,96 @@ export default function AnalysisPage() {
 
   </section>
 
-)}
-
-                         {profile !== "ev" && (
-<section className="border border-[#2C3444] bg-[#151818] p-5 md:p-8">
-
-              <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">RISK ASSESSMENT / 5×5 MATRIX</p><h2 className="mt-3 text-2xl font-black">RİSK DEĞERLENDİRMESİ</h2></div><div className="text-right"><p className="font-mono text-xs text-[#A7A3B3]">{approved} / {risks.length} ONAYLANDI</p><div className="mt-2 h-1.5 w-36 bg-[#2C3444]"><div className="h-full bg-[#3FB27F] transition-all duration-500" style={{ width: `${risks.length ? approved / risks.length * 100 : 0}%` }}/></div></div></div>
-
-              <div className="mt-7 space-y-3">{risks.map((risk) => <article key={risk.id} className="border border-[#2C3444] bg-[#0B0C10] transition hover:border-[#636E85]"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2C3444] px-5 py-4"><div className="flex items-center gap-3"><span className="font-mono text-xs text-[#9966CC]">{risk.id}</span><h3 className="text-sm font-bold">{risk.tehlike}</h3></div><div className="flex flex-wrap items-center gap-2">{risk.onay !== "bekliyor" && <span className="border border-[#3FB27F]/40 px-2 py-1 font-mono text-[10px] text-[#3FB27F]">✓ {risk.onay === "duzenlendi" ? "DÜZENLENDİ" : "ONAYLANDI"}</span>}<span className={`border px-3 py-1 font-mono text-[10px] ${severityColor(risk.skor)}`}>{risk.seviye} / {risk.skor}</span></div></div><div className="grid gap-5 px-5 py-5 md:grid-cols-2"><div><p className="font-mono text-[10px] text-[#9966CC]">GEREKÇE</p><p className="mt-2 text-sm leading-6 text-[#A7A3B3]">{risk.gerekce}</p></div><div><p className="font-mono text-[10px] text-[#9966CC]">ÖNERİLEN ÖNLEM</p>{editing === risk.id ? <textarea value={editText} onChange={(event) => setEditText(event.target.value)} className="mt-2 min-h-24 w-full border border-[#9966CC] bg-[#151818] p-3 text-sm outline-none"/> : <p className="mt-2 text-sm leading-6">{risk.onlem}</p>}</div></div><div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#2C3444] px-5 py-4"><span className="font-mono text-xs text-[#A7A3B3]">OLASILIK {risk.olasilik} × ŞİDDET {risk.siddet} = <strong className="text-white">{risk.skor}</strong></span><div className="flex gap-2">{editing === risk.id ? <><button type="button" onClick={() => setEditing(null)} className="border border-[#636E85] px-4 py-2 text-xs">İPTAL</button><button type="button" onClick={() => saveEdit(risk.id)} className="bg-[#9966CC] px-4 py-2 text-xs font-bold text-[#0B0C10]">KAYDET</button></> : <><button type="button" onClick={() => { setEditing(risk.id); setEditText(risk.onlem); }} className="border border-[#636E85] px-4 py-2 text-xs transition hover:border-[#9966CC]">DÜZENLE</button><button type="button" onClick={() => approve(risk.id)} disabled={risk.onay !== "bekliyor"} className="bg-[#9966CC] px-4 py-2 text-xs font-bold text-[#0B0C10] disabled:cursor-default disabled:opacity-60">{risk.onay === "bekliyor" ? "ONAYLA" : "ONAYLANDI ✓"}</button></>}</div></div></article>)}</div>
-
-            </section>
-
-                         )}
-
-<div className="grid gap-5 lg:grid-cols-2">
+                         <div className="grid gap-5 lg:grid-cols-2">
 
               <section className="border border-[#2C3444] bg-[#151818] p-6"><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">AI / INSIGHT</p><h2 className="mt-3 text-xl font-black">ANALİZ YORUMU</h2><div className="mt-5 border-l-2 border-[#9966CC] pl-4"><p className="text-sm leading-7 text-[#A7A3B3]">{commentary || "Bu analiz için yorum bulunmuyor."}</p></div></section>
 
               <section className="border border-[#2C3444] bg-[#151818] p-6">
+
                 <p className="font-mono text-[10px] tracking-widest text-[#9966CC]">VERIFICATION / QUESTIONS</p>
+
                 <h2 className="mt-3 text-xl font-black">BELİRSİZLİK KONTROLÜ</h2>
+
                 {questions.length === 0 ? (
+
                   <p className="mt-5 text-sm leading-6 text-[#A7A3B3]">
+
                     Bu analiz için doğrulama sorusu bulunmuyor.
+
                   </p>
+
                 ) : (
+
                   <>
+
                     <p className="mt-3 text-xs text-[#A7A3B3]">
+
                       {Object.keys(answers).length} / {questions.length} soru yanıtlandı
+
                     </p>
+
                     <div className="mt-5 space-y-5">
+
                       {questions.map((question) => (
+
                         <div key={question.id} className="border border-[#2C3444] bg-[#0B0C10] p-4">
+
                           <p className="text-sm leading-6">{question.soru}</p>
+
                           <div className="mt-4 flex flex-wrap gap-2">
+
                             {(["evet", "hayir", "bilmiyorum"] as const).map((answer) => (
+
                               <button
+
                                 key={answer}
+
                                 type="button"
+
                                 aria-pressed={answers[question.id] === answer}
+
                                 onClick={() => setAnswers((previous) => ({ ...previous, [question.id]: answer }))}
+
                                 className={`border px-4 py-3 text-xs font-bold transition ${
+
                                   answers[question.id] === answer
+
                                     ? "border-[#9966CC] bg-[#2A2140] text-[#F2F0F5]"
+
                                     : "border-[#636E85] hover:border-[#9966CC]"
+
                                 }`}
+
                               >
+
                                 {answer === "evet" ? "EVET" : answer === "hayir" ? "HAYIR" : "BİLMİYORUM"}
+
                               </button>
+
                             ))}
+
                           </div>
+
                         </div>
+
                       ))}
+
                     </div>
+
                     {Object.keys(answers).length > 0 && (
+
                       <p role="status" className="mt-4 text-xs leading-6 text-[#E0A73A]">
+
                         Yanıtlar bu analiz ekranında saklanıyor. API'ye gönderilmedi ve risk skoru yeniden hesaplanmadı.
+
                       </p>
+
                     )}
+
                   </>
+
                 )}
+
               </section>
 
             </div>
