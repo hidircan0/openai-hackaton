@@ -5,7 +5,7 @@
 ## Sorumluluk
 
 - **`schema/`**: Veri sözleşmesinin tek kaynağı. Diğer üç klasör tipleri buradan alır. Ömer ile ortak; değişiklik sadece sync anlarında, doğrudan `main`'e.
-- **`ai/`**: Gemini API çağrıları (`GEMINI_MODEL`). Projede modelin çağrıldığı **tek** yer: algılama ve yorum.
+- **`ai/`**: GPT-6 Sol (`gpt-6-sol`, Responses API) çağrıları. Projede modelin çağrıldığı **tek** yer: algılama ve yorum.
 
 ## Planlanan yapı
 

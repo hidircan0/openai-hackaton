@@ -1,6 +1,6 @@
 ---
 name: sarsinti
-description: Sarsıntı hackathon projesinde (fotoğraftan deprem ve İSG risk analizi) kod yazarken; şema, skor motoru, Gemini çağrıları, 3D sahne, arayüz ya da pitch materyali üzerinde çalışırken kullan. Ekibin değişmez mimari kurallarını, veri sözleşmesini, skor formülünü, kabul testi odasını ve iş bölümünü içerir.
+description: Sarsıntı hackathon projesinde (fotoğraftan deprem ve İSG risk analizi) kod yazarken; şema, skor motoru, GPT-6 Sol çağrıları, 3D sahne, arayüz ya da pitch materyali üzerinde çalışırken kullan. Ekibin değişmez mimari kurallarını, veri sözleşmesini, skor formülünü, kabul testi odasını ve iş bölümünü içerir.
 ---
 
 # Sarsıntı · Ekip skill'i
@@ -12,13 +12,13 @@ Bu dosya Cem, Ömer, Hıdırcan ve Rabii'nin agent'larının aynı kurallarla ç
 Sarsıntı tek bir oda fotoğrafından deprem anında devrilebilecek eşyaları, kapanabilecek kaçış yollarını ve temel İSG risklerini çıkarır. Odayı 3D kurar, "Deprem" butonuyla riskli eşyaları devirir ve deprem öncesi ile sonrası konumları karşılaştırarak **Oda Güvenlik Skoru** (0–100) hesaplar.
 
 - **Profiller:** `isg` (ana; kullanıcı İSG uzmanı, alıcı OSGB), `ev` (ikinci), `okul` (vakit kalırsa, Codex'e eklettirilecek).
-- **Çıktı:** Oda Güvenlik Skoru (%) + Gemini yorumu + risk tablosu (uzman onaylı).
+- **Çıktı:** Oda Güvenlik Skoru (%) + GPT-6 Sol yorumu + risk tablosu (uzman onaylı).
 - **Hackathon:** Build Anything with Codex, 12 Ekim 2026, DotsHub. Kodlama 09:30–16:00, ekip teslimi 15:50. Etkinlik "boş sayfa" ile başlıyor: önceden yazılmış ürün kodu yok.
 
 ## Değişmez kurallar
 
 1. **Skoru kod hesaplar.** Model hiçbir puan üretmez ve değiştirmez. Modelin ürettiği tek sayılar, algılamadaki tahmini boyut ve koordinatlardır.
-2. **Gemini (`GEMINI_MODEL`, Gemini API) yalnızca iki yerde çağrılır:** algılama (`/ai`) ve yorum (`/ai`). Başka model çağrısı ekleme.
+2. **GPT-6 Sol (`gpt-6-sol`, Responses API) yalnızca iki yerde çağrılır:** algılama (`/ai`) ve yorum (`/ai`). Başka model çağrısı ekleme.
 3. **Yorum çağrısının çıktı şemasında skor ya da puan alanı yoktur.** Skor prompt'a sabit değer olarak verilir.
 4. **Son konumları (t1) yalnızca Ömer'in Python simülasyon servisi hesaplar.** `/scene` kendi fizik hesabını yapmaz; sunucudan gelen hareket izlerini gösterir.
 5. **Profil davranışı `/profiles` altındaki ayar dosyalarıyla değişir.** Kodda `if (profil === "ev")` gibi dallanma yok.
@@ -30,13 +30,13 @@ Sarsıntı tek bir oda fotoğrafından deprem anında devrilebilecek eşyaları,
 
 ## Akış
 
-1. **Algılama (Gemini):** Fotoğraf → oda, eşyalar, tahmini boyutlar, ilk konumlar (t0).
+1. **Algılama (GPT-6 Sol):** Fotoğraf → oda, eşyalar, tahmini boyutlar, ilk konumlar (t0).
 2. **Bölgeler (kod):** Eşya listesinden kritik bölgeler üretilir.
 3. **Sallama (kod):** Devrilme modeli her eşyanın son konumunu (t1) hesaplar.
 4. **Kayma (kod):** `|t0 − t1| / oda boyutu` → K.
 5. **Çarpma (kod):** Devrilen eşyaların izi kritik bölgelere değiyor mu?
 6. **Skor (kod):** `100 − kayma cezası − çarpma cezası`; risk satırlarının O ve Ş değerleri.
-7. **Yorum (Gemini):** Skor ve sayılar verilir, gerekçe ve önlem yazılır. Skor değişmez.
+7. **Yorum (GPT-6 Sol):** Skor ve sayılar verilir, gerekçe ve önlem yazılır. Skor değişmez.
 
 "Önlemleri uygula" denince sabitlenen eşyalar için 3–6. adımlar tekrar çalışır; GPT'ye tekrar gitmek gerekmez.
 
@@ -80,7 +80,7 @@ Stack: Next.js (App Router) + TypeScript + Tailwind · 3D: `@react-three/fiber` 
 - `bolge`: `kacis | yatak | calisma | bos`
 - `olasilik`, `siddet`: 1–5, **kod türetir**
 - `skor` (O × Ş), `seviye`: **kod hesaplar**
-- `gerekce`, `onlem`: **Gemini yazar**
+- `gerekce`, `onlem`: **GPT-6 Sol yazar**
 - `sorumlu`, `termin`: sadece `isg` profilinde
 - `onay`: `bekliyor | onaylandi | duzenlendi`
 
@@ -230,7 +230,7 @@ Kitaplığın devrilme izi y 40–230 aralığında yatak bölgesine (y ≥ 130)
 ## Pitch ile tutarlılık
 
 - "Oda Güvenlik Skoru", "basitleştirilmiş devrilme modeli", "taslak, uzman onaylı".
-- "Gemini fotoğrafı okuyor ve yorumluyor; skoru kodumuz hesaplıyor, model değiştiremiyor."
+- "GPT-6 Sol fotoğrafı okuyor ve yorumluyor; skoru kodumuz hesaplıyor, model değiştiremiyor."
 - "Her uzman onayı sisteme bir etiket; katsayılar uzman verisiyle kalibre edilecek."
 - Skor rakamlarını demo odasının gerçek değerlerinden söyle; örnek rakamları gerçekmiş gibi kullanma.
 

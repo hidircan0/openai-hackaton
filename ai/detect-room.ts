@@ -1,5 +1,5 @@
 import "server-only";
-import { requestStructuredJson, strictObject } from "./gemini";
+import { requestStructuredJson, strictObject } from "./openai";
 
 export type Detection = {
   room: { type: string; dimensions: { widthCm: number; depthCm: number; heightCm: number }; exits: Array<{ type: string; wall: string; startCm: number; endCm: number; widthCm: number }>; warnings: string[] };
@@ -28,7 +28,7 @@ const schema = strictObject({
 });
 
 export async function detectRoom(photo: File, profile: string): Promise<Detection> {
-  const imageData = Buffer.from(await photo.arrayBuffer()).toString("base64");
+  const dataUrl = `data:${photo.type};base64,${Buffer.from(await photo.arrayBuffer()).toString("base64")}`;
   const output = await requestStructuredJson<Detection>({
     name: "room_detection",
     schema,
@@ -40,9 +40,9 @@ export async function detectRoom(photo: File, profile: string): Promise<Detectio
       "Sabitleme fotoğrafta açıkça görünmüyorsa anchored=uncertain. Fotoğrafta görünmeyen eşya, kapı veya özellik uydurma. Skor, risk, t1, düşme sonucu veya güvenlik iddiası üretme. Sadece algılama alanlarını doldur.",
       `Analiz profili: ${profile}.`,
     ].join(" "),
-    input: [{ role: "user", parts: [
-      { text: "Oda fotoğrafındaki görünür eşyaları, yaklaşık ölçülerini ve t0 koordinatlarını algıla." },
-      { inlineData: { mimeType: photo.type, data: imageData } },
+    input: [{ role: "user", content: [
+      { type: "input_text", text: "Oda fotoğrafındaki görünür eşyaları, yaklaşık ölçülerini ve t0 koordinatlarını algıla." },
+      { type: "input_image", image_url: dataUrl, detail: "high" },
     ] }],
   });
   const { widthCm, depthCm, heightCm } = output.room.dimensions;
@@ -70,6 +70,6 @@ export async function writeCommentary(profile: string, calculated: Record<string
     schema: commentarySchema,
     timeoutMs: 18_000,
     instructions: "Türkçe, kısa ve anlaşılır gerekçe/önlem yaz. Yalnızca verilen riskleri açıkla. Skor ve tüm sayısal hesaplar sabittir; yeni sayı, skor veya risk ekleme, hiçbir sayısal değeri değiştirme. Fotoğrafta görünmeyen bilgiyi uydurma. İSG profili profesyonel, ev/okul profili sade dille yazılsın.",
-    input: [{ role: "user", parts: [{ text: JSON.stringify({ profile, ...calculated }) }] }],
+    input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify({ profile, ...calculated }) }] }],
   });
 }
