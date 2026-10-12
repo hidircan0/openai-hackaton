@@ -1,234 +1,257 @@
 {
-  "oda": {
-    "tip": "yatak_odasi",
-    "boyut": {
-      "genislikCm": 400,
-      "derinlikCm": 300,
-      "yukseklikCm": 260
+  "profile": "isg",
+  "safetyScore": 62,
+  "rawSafetyScore": 61.87,
+  "room": {
+    "type": "bedroom",
+    "dimensions": {
+      "widthCm": 400,
+      "depthCm": 300,
+      "heightCm": 260
     },
-    "kacisNoktalari": [
+    "exits": [
       {
-        "tip": "kapi",
-        "duvar": "sag",
-        "baslangicCm": 100,
-        "bitisCm": 190,
-        "genislikCm": 90
+        "type": "door",
+        "wall": "+x",
+        "startCm": 100,
+        "endCm": 190,
+        "widthCm": 90
       }
     ],
-    "uyarilar": [],
-    "profil": "isg",
-    "odaSkoru": 62,
-    "yorum": "Kitaplığın depremde devrilerek yatağın üzerine düşme riski bulunuyor. Kitaplığı duvara sabitlemek ve aynanın sabitlemesini kontrol etmek öncelikli önlemlerdir."
+    "warnings": []
   },
-  "esyalar": [
+  "items": [
     {
-      "id": "kitaplik-1",
-      "tip": "kitaplik",
-      "t0": {
-        "taban": {
-          "x1": 50,
-          "y1": 0,
-          "x2": 130,
-          "y2": 40
-        },
-        "zAlt": 0,
-        "zUst": 190
+      "id": "bookcase-1",
+      "type": "bookcase",
+      "before": {
+        "footprint": { "x1": 50, "y1": 0, "x2": 130, "y2": 40 },
+        "bottomZ": 0,
+        "topZ": 190
       },
-      "t1": {
-        "taban": {
-          "x1": 50,
-          "y1": 40,
-          "x2": 130,
-          "y2": 230
-        },
-        "zAlt": 0,
-        "zUst": 40
+      "after": {
+        "footprint": { "x1": 50, "y1": 40, "x2": 130, "y2": 230 },
+        "bottomZ": 0,
+        "topZ": 40
       },
-      "boyut": {
-        "genislikCm": 80,
-        "derinlikCm": 40,
-        "yukseklikCm": 190
+      "dimensions": { "widthCm": 80, "depthCm": 40, "heightCm": 190 },
+      "fallDirection": {
+        "description": "toward_the_room_interior",
+        "axis": "+y"
       },
-      "yon": {
-        "deger": "arka_duvara_dogru",
-        "eksen": "+y"
-      },
-      "sabit": "hayir",
-      "asili": false,
-      "ustYuk": false,
-      "kirilgan": false,
-      "guven": 0.91,
-      "tetiklenenKurallar": ["R1"]
+      "anchored": "no",
+      "wallMounted": false,
+      "hasHeavyOrFragileLoad": false,
+      "fragile": false,
+      "confidence": 0.91,
+      "triggeredRules": ["R1"],
+      "displacement": { "d": 0.277, "volumeWeight": 0.2341 },
+      "impact": { "multiplier": 1.0, "hitZones": ["bed"] }
     },
     {
-      "id": "yatak-1",
-      "tip": "yatak",
-      "t0": {
-        "taban": {
-          "x1": 40,
-          "y1": 150,
-          "x2": 130,
-          "y2": 300
-        },
-        "zAlt": 0,
-        "zUst": 50
+      "id": "bed-1",
+      "type": "bed",
+      "before": {
+        "footprint": { "x1": 40, "y1": 150, "x2": 130, "y2": 300 },
+        "bottomZ": 0,
+        "topZ": 50
       },
-      "t1": {
-        "taban": {
-          "x1": 40,
-          "y1": 150,
-          "x2": 130,
-          "y2": 300
-        },
-        "zAlt": 0,
-        "zUst": 50
+      "after": {
+        "footprint": { "x1": 40, "y1": 150, "x2": 130, "y2": 300 },
+        "bottomZ": 0,
+        "topZ": 50
       },
-      "boyut": {
-        "genislikCm": 90,
-        "derinlikCm": 150,
-        "yukseklikCm": 50
+      "dimensions": { "widthCm": 90, "depthCm": 150, "heightCm": 50 },
+      "fallDirection": {
+        "description": "stationary",
+        "axis": null
       },
-      "yon": {
-        "deger": "sabit",
-        "eksen": null
-      },
-      "sabit": "evet",
-      "asili": false,
-      "ustYuk": false,
-      "kirilgan": false,
-      "guven": 0.98,
-      "tetiklenenKurallar": []
+      "anchored": "yes",
+      "wallMounted": false,
+      "hasHeavyOrFragileLoad": false,
+      "fragile": false,
+      "confidence": 0.98,
+      "triggeredRules": [],
+      "displacement": null,
+      "impact": null
     },
     {
-      "id": "ayna-1",
-      "tip": "ayna",
-      "t0": {
-        "taban": {
-          "x1": 60,
-          "y1": 298,
-          "x2": 120,
-          "y2": 300
-        },
-        "zAlt": 110,
-        "zUst": 190
+      "id": "mirror-1",
+      "type": "mirror",
+      "before": {
+        "footprint": { "x1": 60, "y1": 298, "x2": 120, "y2": 300 },
+        "bottomZ": 110,
+        "topZ": 190
       },
-      "t1": {
-        "taban": {
-          "x1": 60,
-          "y1": 258,
-          "x2": 120,
-          "y2": 300
-        },
-        "zAlt": 50,
-        "zUst": 52
+      "after": {
+        "footprint": { "x1": 60, "y1": 258, "x2": 120, "y2": 300 },
+        "bottomZ": 50,
+        "topZ": 52
       },
-      "boyut": {
-        "genislikCm": 60,
-        "derinlikCm": 2,
-        "yukseklikCm": 80
+      "dimensions": { "widthCm": 60, "depthCm": 2, "heightCm": 80 },
+      "fallDirection": {
+        "description": "toward_the_room_interior",
+        "axis": "-y"
       },
-      "yon": {
-        "deger": "oda_ic_alana_dogru",
-        "eksen": "-y"
+      "anchored": "uncertain",
+      "wallMounted": true,
+      "hasHeavyOrFragileLoad": false,
+      "fragile": true,
+      "confidence": 0.76,
+      "triggeredRules": ["R3"],
+      "displacement": { "d": 0.2232, "volumeWeight": 0.0037 },
+      "impact": { "multiplier": 0.52, "hitZones": ["bed"] }
+    },
+    {
+      "id": "wardrobe-1",
+      "type": "wardrobe",
+      "before": {
+        "footprint": { "x1": 250, "y1": 0, "x2": 370, "y2": 60 },
+        "bottomZ": 0,
+        "topZ": 200
       },
-      "sabit": "belirsiz",
-      "asili": true,
-      "ustYuk": false,
-      "kirilgan": true,
-      "guven": 0.76,
-      "tetiklenenKurallar": ["R3"]
+      "after": {
+        "footprint": { "x1": 250, "y1": 0, "x2": 370, "y2": 60 },
+        "bottomZ": 0,
+        "topZ": 200
+      },
+      "dimensions": { "widthCm": 120, "depthCm": 60, "heightCm": 200 },
+      "fallDirection": {
+        "description": "stationary",
+        "axis": null
+      },
+      "anchored": "yes",
+      "wallMounted": false,
+      "hasHeavyOrFragileLoad": false,
+      "fragile": false,
+      "confidence": 0.93,
+      "triggeredRules": [],
+      "displacement": { "d": 0, "volumeWeight": 0.5544 },
+      "impact": null
+    },
+    {
+      "id": "desk-1",
+      "type": "desk",
+      "before": {
+        "footprint": { "x1": 280, "y1": 200, "x2": 400, "y2": 260 },
+        "bottomZ": 0,
+        "topZ": 75
+      },
+      "after": {
+        "footprint": { "x1": 280, "y1": 200, "x2": 400, "y2": 260 },
+        "bottomZ": 0,
+        "topZ": 75
+      },
+      "dimensions": { "widthCm": 120, "depthCm": 60, "heightCm": 75 },
+      "fallDirection": {
+        "description": "stationary",
+        "axis": null
+      },
+      "anchored": "uncertain",
+      "wallMounted": false,
+      "hasHeavyOrFragileLoad": false,
+      "fragile": false,
+      "confidence": 0.88,
+      "triggeredRules": [],
+      "displacement": { "d": 0, "volumeWeight": 0.2079 },
+      "impact": null
     }
   ],
-  "bolgeler": [
+  "criticalZones": [
     {
-      "id": "bolge-yatak-1",
-      "tip": "yatak",
-      "sinirlar": {
-        "x1": 20,
-        "y1": 130,
-        "x2": 150,
-        "y2": 320
-      },
-      "puan": 25
+      "id": "bed-zone-1",
+      "type": "bed",
+      "bounds": { "x1": 20, "y1": 130, "x2": 150, "y2": 300 },
+      "penaltyPoints": 25
     },
     {
-      "id": "bolge-kacis-1",
-      "tip": "kacis",
-      "sinirlar": {
-        "x1": 300,
-        "y1": 100,
-        "x2": 400,
-        "y2": 190
-      },
-      "puan": 30
+      "id": "exit-zone-1",
+      "type": "exit",
+      "bounds": { "x1": 300, "y1": 100, "x2": 400, "y2": 190 },
+      "penaltyPoints": 30
     },
     {
-      "id": "bolge-calisma-1",
-      "tip": "calisma",
-      "sinirlar": {
-        "x1": 280,
-        "y1": 200,
-        "x2": 400,
-        "y2": 300
-      },
-      "puan": 15
+      "id": "work-zone-1",
+      "type": "work_area",
+      "bounds": { "x1": 280, "y1": 200, "x2": 400, "y2": 300 },
+      "penaltyPoints": 15
     }
   ],
-  "riskler": [
+  "risks": [
     {
-      "id": "risk-kitaplik-1",
-      "esyaId": "kitaplik-1",
-      "kural": "R1",
-      "tehlike": "Sabitlenmemiş kitaplık devrilerek yatağın üzerine düşebilir.",
-      "bolge": "yatak",
-      "olasilik": 4,
-      "siddet": 5,
-      "skor": 20,
-      "seviye": 5,
-      "seviyeEtiketi": "Tolere edilemez",
-      "gerekce": "Yaklaşık 190 cm yüksekliğindeki kitaplığın devrilme izi yatağın güvenli alanıyla kesişiyor.",
-      "onlem": "Kitaplığı duvara L-demir veya bağlantı kayışıyla sabitleyin.",
-      "sorumlu": "İSG uzmanı",
-      "termin": "Öncelikli",
-      "onay": "bekliyor"
+      "id": "risk-bookcase-1",
+      "itemId": "bookcase-1",
+      "rule": "R1",
+      "hazard": "The unsecured bookcase may topple onto the bed.",
+      "zone": "bed",
+      "likelihood": 4,
+      "severity": 5,
+      "riskScore": 20,
+      "level": 5,
+      "levelLabel": "Intolerable",
+      "reason": "The approximately 190 cm tall bookcase falls about 1.2 m forward and its footprint overlaps the bed zone.",
+      "recommendedAction": "Secure the bookcase to the wall with an L-bracket or safety strap.",
+      "owner": "Occupational safety specialist",
+      "due": "Priority",
+      "approvalStatus": "pending"
     },
     {
-      "id": "risk-ayna-1",
-      "esyaId": "ayna-1",
-      "kural": "R3",
-      "tehlike": "Sabitlemesi belirsiz ayna düşerek yatağa ulaşabilir.",
-      "bolge": "yatak",
-      "olasilik": 3,
-      "siddet": 5,
-      "skor": 15,
-      "seviye": 4,
-      "seviyeEtiketi": "Yüksek",
-      "gerekce": "Aynanın tahmini düşme izi yatak bölgesiyle kesişiyor; duvar bağlantısının sağlamlığı fotoğraftan doğrulanamıyor.",
-      "onlem": "Aynayı yataktan uzaklaştırın ve güvenli askı kullandığını doğrulayın.",
-      "sorumlu": "İSG uzmanı",
-      "termin": "Kontrol edilmeli",
-      "onay": "bekliyor"
+      "id": "risk-mirror-1",
+      "itemId": "mirror-1",
+      "rule": "R3",
+      "hazard": "The mirror may fall onto the bed because its mounting is uncertain.",
+      "zone": "bed",
+      "likelihood": 3,
+      "severity": 5,
+      "riskScore": 15,
+      "level": 4,
+      "levelLabel": "High",
+      "reason": "The mirror's estimated fall footprint overlaps the bed zone; its wall mounting cannot be verified from the photo.",
+      "recommendedAction": "Move the mirror away from the bed and verify that it has a secure mounting.",
+      "owner": "Occupational safety specialist",
+      "due": "Needs inspection",
+      "approvalStatus": "pending"
+    },
+    {
+      "id": "risk-extinguisher-1",
+      "itemId": null,
+      "rule": "R6",
+      "hazard": "No fire extinguisher is visible in the room.",
+      "zone": null,
+      "likelihood": 3,
+      "severity": 4,
+      "riskScore": 12,
+      "level": 3,
+      "levelLabel": "Moderate",
+      "reason": "No fire extinguisher was detected in the photo.",
+      "recommendedAction": "Place a fire extinguisher in an accessible location and keep its front clear.",
+      "owner": "Occupational safety specialist",
+      "due": "Needs inspection",
+      "approvalStatus": "pending"
     }
   ],
-  "cezalar": {
-    "alfa": 2,
-    "kaymaIndeksi": 0.066,
-    "kayma": 13,
-    "carpma": [
+  "penalties": {
+    "alpha": 2,
+    "slidingIndex": 0.0657,
+    "sliding": 13.13,
+    "impacts": [
       {
-        "bolge": "yatak",
-        "esyaId": "kitaplik-1",
-        "puan": 25
+        "zone": "bed",
+        "itemId": "bookcase-1",
+        "points": 25
       }
     ],
-    "toplam": 38
+    "total": 38.13
   },
-  "seviyeOlcegi": {
-    "1": "Önemsiz",
-    "2": "Düşük",
-    "3": "Orta",
-    "4": "Yüksek",
-    "5": "Tolere edilemez"
+  "commentary": {
+    "roomComment": "The score is 62. The largest deduction comes from the unsecured bookcase toppling onto the bed (-25). Securing the bookcase to the wall and checking the mirror's mounting are the priority actions."
   },
-  "not": "Bu dosya örnek API yanıtıdır. yon.deger okunabilir yön adını, yon.eksen ise hesaplamada kullanılan koordinat yönünü gösterir. Risk seviye alanı 1–5 arasında sayısaldır; O × Ş risk skoru ayrı olarak 1–25 aralığında tutulur."
+  "riskLevelScale": {
+    "1": "Insignificant",
+    "2": "Low",
+    "3": "Moderate",
+    "4": "High",
+    "5": "Intolerable"
+  },
+  "note": "Example API response for the acceptance test room. All numbers except reason, recommendedAction and commentary are computed by code; those three are written by the AI and must not change any number. safetyScore is rawSafetyScore rounded. fallDirection.axis is used for coordinate calculations. displacement.d is the normalized 0-1 displacement of each item (null for items excluded from sliding: bed, door, cable, extinguisher). impacts lists only the heaviest item per zone; item.impact.hitZones lists every zone an item's fall footprint touches. Risk level is 1-5; riskScore is likelihood x severity (1-25)."
 }
