@@ -10,6 +10,16 @@ const AnalizSahnesi = dynamic(
   { ssr: false, loading: () => <div className="scene-loading">Oda sahnesi hazırlanıyor…</div> },
 );
 const analiz = sample as unknown as AnalyzeResponse;
+const odaTipi = analiz.room.type === "bedroom"
+  ? "Yatak odası"
+  : analiz.room.type.replaceAll("_", " ");
+const esyaTipleri: Record<string, string> = {
+  bookcase: "Kitaplık",
+  bed: "Yatak",
+  mirror: "Ayna",
+  wardrobe: "Gardırop",
+  desk: "Masa",
+};
 
 export default function Home() {
   const [deprem, setDeprem] = useState(false);
@@ -29,7 +39,7 @@ export default function Home() {
     </header>
 
     <section className="intro">
-      <div><p className="eyebrow">{analiz.oda.profil.toUpperCase()} PROFİLİ · {analiz.oda.tip.replaceAll("_", " ").toUpperCase()}</p>
+      <div><p className="eyebrow">{analiz.profile.toUpperCase()} PROFİLİ · {odaTipi.toUpperCase()}</p>
         <h1>Odanın risk haritası</h1>
         <p className="muted">Eşyaların mevcut konumlarını ve motorun hesapladığı deprem sonrası izleri inceleyin.</p>
       </div>
@@ -42,7 +52,7 @@ export default function Home() {
       <div className="main-column">
         <div className="scene-card">
           <div className="scene-toolbar">
-            <div><span className="live-dot" /> ODA SAHNESİ <span className="divider">/</span> {analiz.oda.boyut.genislikCm} × {analiz.oda.boyut.derinlikCm} cm</div>
+            <div><span className="live-dot" /> ODA SAHNESİ <span className="divider">/</span> {analiz.room.dimensions.widthCm} × {analiz.room.dimensions.depthCm} cm</div>
             <div className="view-switch" aria-label="Sahne görünümü">
               <button className={gorunum === "3d" ? "selected" : ""} onClick={() => setGorunum("3d")}>3D</button>
               <button className={gorunum === "2d" ? "selected" : ""} onClick={() => setGorunum("2d")}>PLAN</button>
@@ -53,30 +63,30 @@ export default function Home() {
           </div>
           <div className="legend"><span><i className="legend-risk" /> Riskli eşya</span><span><i className="legend-safe" /> Diğer eşya</span><span><i className="legend-zone" /> Kritik bölge</span></div>
         </div>
-        <article className="comment-card"><div className="comment-icon">AI</div><div><p className="eyebrow">ANALİZ YORUMU</p><p>{analiz.oda.yorum}</p></div></article>
+        <article className="comment-card"><div className="comment-icon">AI</div><div><p className="eyebrow">ANALİZ YORUMU</p><p>{analiz.commentary.roomComment}</p></div></article>
       </div>
 
       <aside className="side-column">
         <article className="score-card">
           <div className="card-heading"><span>ODA GÜVENLİK SKORU</span><span className="score-caption">/ 100</span></div>
-          <div className="score-value">{analiz.oda.odaSkoru}<span>%</span></div>
-          <div className="score-track"><span style={{ width: `${analiz.oda.odaSkoru}%` }} /></div>
+          <div className="score-value">{analiz.safetyScore}<span>%</span></div>
+          <div className="score-track"><span style={{ width: `${analiz.safetyScore}%` }} /></div>
           <p className="muted">Skor analiz motoru tarafından hesaplandı.</p>
         </article>
 
         <article className="risk-card">
-          <div className="card-heading"><span>ÖNCELİKLİ RİSKLER</span><span className="risk-count">{analiz.riskler.length}</span></div>
-          <div className="risk-list">{analiz.riskler.map((risk) => <div className="risk-row" key={risk.id}>
+          <div className="card-heading"><span>ÖNCELİKLİ RİSKLER</span><span className="risk-count">{analiz.risks.length}</span></div>
+          <div className="risk-list">{analiz.risks.map((risk) => <div className="risk-row" key={risk.id}>
             <span className="risk-marker" />
-            <div className="risk-content"><strong>{analiz.esyalar.find((e) => e.id === risk.esyaId)?.tip ?? "Eşya"}</strong><p>{risk.tehlike}</p><span className="risk-severity">{risk.seviyeEtiketi}</span></div>
-            <b className="risk-score">{risk.skor}</b>
+            <div className="risk-content"><strong>{esyaTipleri[analiz.items.find((item) => item.id === risk.itemId)?.type ?? ""] ?? "Genel oda riski"}</strong><p>{risk.hazard}</p><span className="risk-severity">{risk.levelLabel}</span></div>
+            <b className="risk-score">{risk.riskScore}</b>
           </div>)}</div>
         </article>
 
         <article className="penalty-card"><div className="card-heading"><span>SKOR ETKİSİ</span><span className="muted">MOTOR ÇIKTISI</span></div>
-          <div className="penalty-line"><span>Kayma cezası</span><strong>−{analiz.cezalar.kayma}</strong></div>
-          <div className="penalty-line"><span>Bölge çarpışmaları</span><strong>−{analiz.cezalar.carpma.reduce((sum, item) => sum + item.puan, 0)}</strong></div>
-          <div className="penalty-total"><span>Toplam ceza</span><strong>−{analiz.cezalar.toplam}</strong></div>
+          <div className="penalty-line"><span>Kayma cezası</span><strong>−{analiz.penalties.sliding.toFixed(0)}</strong></div>
+          <div className="penalty-line"><span>Bölge çarpışmaları</span><strong>−{analiz.penalties.impacts.reduce((sum, item) => sum + item.points, 0)}</strong></div>
+          <div className="penalty-total"><span>Toplam ceza</span><strong>−{analiz.penalties.total.toFixed(0)}</strong></div>
         </article>
       </aside>
     </section>

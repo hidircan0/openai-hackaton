@@ -1,30 +1,61 @@
-/** API contract consumed by the scene. Measurements are centimeters. */
+/** Current POST /api/analyze response shape. Spatial measurements are centimeters. */
 export type AnalyzeResponse = {
-  oda: {
-    tip: string;
-    boyut: { genislikCm: number; derinlikCm: number; yukseklikCm: number };
-    kacisNoktalari?: Array<{ tip: string; duvar: string; baslangicCm: number; bitisCm: number; genislikCm: number }>;
-    uyarilar: string[];
-    profil: string;
-    odaSkoru: number;
-    yorum: string;
+  profile: string;
+  safetyScore: number;
+  rawSafetyScore: number;
+  room: {
+    type: string;
+    dimensions: { widthCm: number; depthCm: number; heightCm: number };
+    exits: Array<{ type: string; wall: string; startCm: number; endCm: number; widthCm: number }>;
+    warnings: string[];
   };
-  esyalar: Array<{
+  items: Array<{
     id: string;
-    tip: string;
-    t0: { taban: { x1: number; y1: number; x2: number; y2: number }; zAlt: number; zUst: number };
-    t1: { taban: { x1: number; y1: number; x2: number; y2: number }; zAlt: number; zUst: number };
-    boyut: { genislikCm: number; derinlikCm: number; yukseklikCm: number };
-    yon: { deger: string; eksen: "+x" | "-x" | "+y" | "-y" | null };
-    sabit: "evet" | "hayir" | "belirsiz";
-    asili: boolean;
-    ustYuk: boolean;
-    kirilgan: boolean;
-    guven: number;
-    tetiklenenKurallar: string[];
+    type: string;
+    before: { footprint: { x1: number; y1: number; x2: number; y2: number }; bottomZ: number; topZ: number };
+    after: { footprint: { x1: number; y1: number; x2: number; y2: number }; bottomZ: number; topZ: number };
+    dimensions: { widthCm: number; depthCm: number; heightCm: number };
+    fallDirection: { description: string; axis: "+x" | "-x" | "+y" | "-y" | null };
+    anchored: "yes" | "no" | "uncertain";
+    wallMounted: boolean;
+    hasHeavyOrFragileLoad: boolean;
+    fragile: boolean;
+    confidence: number;
+    triggeredRules: string[];
+    displacement: { d: number; volumeWeight: number } | null;
+    impact: { multiplier: number; hitZones: string[] } | null;
   }>;
-  bolgeler: Array<{ id: string; tip: "kacis" | "yatak" | "calisma"; sinirlar: { x1: number; y1: number; x2: number; y2: number }; puan: number }>;
-  riskler: Array<{ id: string; esyaId: string; bolge: string; tehlike: string; olasilik: number; siddet: number; skor: number; seviyeEtiketi: string }>;
-  cezalar: { alfa: number; kaymaIndeksi: number; kayma: number; carpma: Array<{ bolge: string; esyaId: string; puan: number }>; toplam: number };
+  criticalZones: Array<{
+    id: string;
+    type: "bed" | "exit" | "work_area";
+    bounds: { x1: number; y1: number; x2: number; y2: number };
+    penaltyPoints: number;
+  }>;
+  risks: Array<{
+    id: string;
+    itemId: string | null;
+    rule: string;
+    hazard: string;
+    zone: string | null;
+    likelihood: number;
+    severity: number;
+    riskScore: number;
+    level: number;
+    levelLabel: string;
+    reason: string;
+    recommendedAction: string;
+    owner: string;
+    due: string;
+    approvalStatus: string;
+  }>;
+  penalties: {
+    alpha: number;
+    slidingIndex: number;
+    sliding: number;
+    impacts: Array<{ zone: string; itemId: string; points: number }>;
+    total: number;
+  };
+  commentary: { roomComment: string };
+  riskLevelScale: Record<string, string>;
+  note: string;
 };
-
