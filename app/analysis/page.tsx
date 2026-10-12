@@ -50,6 +50,48 @@ const profiles: { id: Profile; name: string; description: string }[] = [
 
 ];
 
+function homeRiskLevel(score: number) {
+
+  if (score >= 15) {
+
+    return {
+
+      label: "YÜKSEK",
+
+      color: "border-[#F0676B]/40 bg-[#F0676B]/10 text-[#F0676B]",
+
+      priority: "Öncelikli olarak ilgilenin",
+
+    };
+
+  }
+
+  if (score >= 8) {
+
+    return {
+
+      label: "ORTA",
+
+      color: "border-[#E0A73A]/40 bg-[#E0A73A]/10 text-[#E0A73A]",
+
+      priority: "Mümkün olan en kısa sürede düzeltin",
+
+    };
+
+  }
+
+  return {
+
+    label: "DÜŞÜK",
+
+    color: "border-[#3FB27F]/40 bg-[#3FB27F]/10 text-[#3FB27F]",
+
+    priority: "Kontrol altında tutun",
+
+  };
+
+}
+
 function severityColor(score: number) {
 
   if (score >= 15) return "border-[#F0676B]/40 bg-[#F0676B]/10 text-[#F0676B]";
@@ -207,34 +249,63 @@ export default function AnalysisPage() {
   }
 
   async function exportExcel() {
+
     const selected = risks.filter((risk) => risk.onay !== "bekliyor");
+
     if (selected.length === 0 || exporting) return;
+
     setExporting(true);
+
     setError("");
+
     try {
+
       const response = await fetch("/api/export-excel", {
+
         method: "POST",
+
         headers: { "Content-Type": "application/json" },
+
         body: JSON.stringify({ risks: selected, profile, demo }),
+
       });
+
       if (!response.ok) {
+
         const message = await response.text();
+
         throw new Error(message || `Rapor servisi hata verdi (${response.status}).`);
+
       }
+
       const blob = await response.blob();
+
       const url = URL.createObjectURL(blob);
+
       const anchor = document.createElement("a");
+
       anchor.href = url;
+
       anchor.download = `SkyEngineX_Risk_Raporu_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
       document.body.appendChild(anchor);
+
       anchor.click();
+
       anchor.remove();
+
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+
     } catch (cause) {
+
       setError(cause instanceof Error ? `Excel raporu oluşturulamadı: ${cause.message}` : "Excel raporu oluşturulamadı.");
+
     } finally {
+
       setExporting(false);
+
     }
+
   }
 
   const approved = risks.filter((risk) => risk.onay !== "bekliyor").length;
@@ -369,9 +440,9 @@ export default function AnalysisPage() {
 
                 { label: "KRİTİK RİSK", value: criticalRisks, color: "#F0676B", detail: "Risk skoru ≥ 15" },
 
-                { label: "ONAYLANAN", value: approved, color: "#3FB27F", detail: "Uzman kontrolünden geçen" },
+                { label: profile === "ev" ? "İNCELENEN" : "ONAYLANAN", value: approved, color: "#3FB27F", detail: profile === "ev" ? "İncelenen öneri" : "Uzman kontrolünden geçen" },
 
-                { label: "BEKLEYEN", value: risks.length - approved, color: "#E0A73A", detail: "Henüz onaylanmamış" },
+                { label: "BEKLEYEN", value: risks.length - approved, color: "#E0A73A", detail: profile === "ev" ? "Henüz incelenmemiş" : "Henüz onaylanmamış" },
 
               ].map((metric) => <div key={metric.label} className="border border-[#2C3444] bg-[#151818] p-5"><p className="font-mono text-[10px] tracking-wider text-[#A7A3B3]">{metric.label}</p><p className="mt-4 text-4xl font-black tracking-tight" style={{ color: metric.color }}>{String(metric.value).padStart(2, "0")}</p><p className="mt-3 text-[11px] text-[#A7A3B3]">{metric.detail}</p></div>)}
 
@@ -417,7 +488,158 @@ export default function AnalysisPage() {
 
             </div>
 
-            <section className="border border-[#2C3444] bg-[#151818] p-5 md:p-8">
+{profile === "ev" && (
+
+  <section className="border border-[#2C3444] bg-[#151818] p-5 md:p-8">
+
+    <p className="font-mono text-[10px] tracking-widest text-[#9966CC]">
+
+      HOME / SAFETY CHECKLIST
+
+    </p>
+
+    <h2 className="mt-3 text-2xl font-black">
+
+      EVİNİZ İÇİN YAPILACAKLAR
+
+    </h2>
+
+    <p className="mt-3 text-sm leading-6 text-[#A7A3B3]">
+
+      Evinizdeki olası eşya risklerini azaltmak için aşağıdaki
+
+      önerileri inceleyin. İncelediğiniz önerileri işaretleyebilirsiniz.
+
+    </p>
+
+    <div className="mt-7 space-y-4">
+
+      {[...risks]
+
+        .sort((a, b) => b.skor - a.skor)
+
+        .map((risk) => {
+
+          const level = homeRiskLevel(risk.skor);
+
+          const completed = risk.onay !== "bekliyor";
+
+          return (
+
+            <article
+
+              key={risk.id}
+
+              className={`border p-5 transition ${
+
+                completed
+
+                  ? "border-[#3FB27F]/40 bg-[#3FB27F]/5"
+
+                  : "border-[#2C3444] bg-[#0B0C10]"
+
+              }`}
+
+            >
+
+              <div className="flex flex-wrap items-start justify-between gap-3">
+
+                <div>
+
+                  <h3 className="text-base font-bold">
+
+                    {risk.tehlike}
+
+                  </h3>
+
+                  <p className="mt-2 text-xs text-[#A7A3B3]">
+
+                    {level.priority}
+
+                  </p>
+
+                </div>
+
+                <span
+
+                  className={`border px-3 py-1 font-mono text-[10px] font-bold ${level.color}`}
+
+                >
+
+                  {level.label}
+
+                </span>
+
+              </div>
+
+              <p className="mt-4 text-sm leading-6 text-[#A7A3B3]">
+
+                {risk.gerekce}
+
+              </p>
+
+              <div className="mt-4 border-l-2 border-[#9966CC] pl-4">
+
+                <p className="text-xs font-bold text-[#B28DDB]">
+
+                  NE YAPMALISINIZ?
+
+                </p>
+
+                <p className="mt-2 text-sm leading-6">
+
+                  {risk.onlem}
+
+                </p>
+
+              </div>
+
+              <button
+
+                type="button"
+
+                onClick={() => approve(risk.id)}
+
+                disabled={completed}
+
+                className={`mt-5 w-full border px-5 py-3 text-xs font-bold transition ${
+
+                  completed
+
+                    ? "cursor-default border-[#3FB27F]/40 text-[#3FB27F]"
+
+                    : "border-[#9966CC] bg-[#9966CC] text-[#0B0C10] hover:bg-[#B28DDB]"
+
+                }`}
+
+              >
+
+                {completed ? "✓ İNCELENDİ" : "İNCELEDİM ✓"}
+
+              </button>
+
+            </article>
+
+          );
+
+        })}
+
+    </div>
+
+    <p className="mt-6 text-xs leading-6 text-[#A7A3B3]">
+
+      Bu liste mekân içindeki eşyalara yönelik öneriler sunar.
+
+      Binanın yapısal deprem güvenliğini değerlendirmez.
+
+    </p>
+
+  </section>
+
+)}
+
+                         {profile !== "ev" && (
+<section className="border border-[#2C3444] bg-[#151818] p-5 md:p-8">
 
               <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">RISK ASSESSMENT / 5×5 MATRIX</p><h2 className="mt-3 text-2xl font-black">RİSK DEĞERLENDİRMESİ</h2></div><div className="text-right"><p className="font-mono text-xs text-[#A7A3B3]">{approved} / {risks.length} ONAYLANDI</p><div className="mt-2 h-1.5 w-36 bg-[#2C3444]"><div className="h-full bg-[#3FB27F] transition-all duration-500" style={{ width: `${risks.length ? approved / risks.length * 100 : 0}%` }}/></div></div></div>
 
@@ -425,7 +647,9 @@ export default function AnalysisPage() {
 
             </section>
 
-            <div className="grid gap-5 lg:grid-cols-2">
+                         )}
+
+<div className="grid gap-5 lg:grid-cols-2">
 
               <section className="border border-[#2C3444] bg-[#151818] p-6"><p className="font-mono text-[10px] tracking-widest text-[#9966CC]">AI / INSIGHT</p><h2 className="mt-3 text-xl font-black">ANALİZ YORUMU</h2><div className="mt-5 border-l-2 border-[#9966CC] pl-4"><p className="text-sm leading-7 text-[#A7A3B3]">{commentary || "Bu analiz için yorum bulunmuyor."}</p></div></section>
 
