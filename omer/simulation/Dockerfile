@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY omer/simulation/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+COPY cem/kayma_skoru ./cem/kayma_skoru
 COPY omer/simulation ./omer/simulation
 
 EXPOSE 8000

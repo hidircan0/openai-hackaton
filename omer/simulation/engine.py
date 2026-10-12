@@ -123,6 +123,76 @@ def _tilt_degrees(quaternion: tuple[float, ...] | list[float]) -> float:
     return math.degrees(math.acos(vertical_cosine))
 
 
+def _overlaps_zone(footprint: dict[str, float], zone: Any) -> bool:
+    bounds = zone.bounds
+    overlap_x = min(footprint["x2"], bounds.x2) - max(footprint["x1"], bounds.x1)
+    overlap_y = min(footprint["y2"], bounds.y2) - max(footprint["y1"], bounds.y1)
+    return overlap_x > 0 and overlap_y > 0
+
+
+def exit_zone_penalties(request: SimulationRequest, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return one R4 penalty if an exit corridor has less than 60 cm clear width."""
+    worst: tuple[float, str, float] | None = None
+    for zone in request.criticalZones:
+        if zone.type != "exit":
+            continue
+
+        bounds = zone.bounds
+        width_x = bounds.x2 - bounds.x1
+        width_y = bounds.y2 - bounds.y1
+        cross_axis, travel_axis = ("x", "y") if width_x <= width_y else ("y", "x")
+        cross_min = getattr(bounds, f"{cross_axis}1")
+        cross_max = getattr(bounds, f"{cross_axis}2")
+        travel_min = getattr(bounds, f"{travel_axis}1")
+        travel_max = getattr(bounds, f"{travel_axis}2")
+        cross_width = cross_max - cross_min
+
+        blockers: list[tuple[str, float, float, float, float]] = []
+        travel_events = {travel_min, travel_max}
+        for item in items:
+            footprint = item["after"]["footprint"]
+            item_cross_min = max(cross_min, footprint[f"{cross_axis}1"])
+            item_cross_max = min(cross_max, footprint[f"{cross_axis}2"])
+            item_travel_min = max(travel_min, footprint[f"{travel_axis}1"])
+            item_travel_max = min(travel_max, footprint[f"{travel_axis}2"])
+            if item_cross_max <= item_cross_min or item_travel_max <= item_travel_min:
+                continue
+            blockers.append((item["id"], item_cross_min, item_cross_max, item_travel_min, item_travel_max))
+            travel_events.update((item_travel_min, item_travel_max))
+
+        sorted_events = sorted(travel_events)
+        minimum_clear_width = cross_width
+        blocking_item_id: str | None = None
+        for start, end in zip(sorted_events, sorted_events[1:]):
+            if end <= start:
+                continue
+            midpoint = (start + end) / 2
+            active = [blocker for blocker in blockers if blocker[3] < midpoint < blocker[4]]
+            intervals = sorted((blocker[1], blocker[2], blocker[0]) for blocker in active)
+            covered_width = 0.0
+            union_end = cross_min
+            widest_blocker: tuple[float, str] | None = None
+            for interval_start, interval_end, item_id in intervals:
+                covered_width += max(0.0, interval_end - max(interval_start, union_end))
+                union_end = max(union_end, interval_end)
+                item_width = interval_end - interval_start
+                if widest_blocker is None or item_width > widest_blocker[0]:
+                    widest_blocker = (item_width, item_id)
+            clear_width = cross_width - covered_width
+            if clear_width < minimum_clear_width:
+                minimum_clear_width = clear_width
+                blocking_item_id = widest_blocker[1] if widest_blocker else None
+
+        if minimum_clear_width < 60 and zone.penaltyPoints > 0:
+            candidate = (minimum_clear_width, blocking_item_id or "", zone.penaltyPoints)
+            if worst is None or candidate[0] < worst[0]:
+                worst = candidate
+
+    if worst is None:
+        return []
+    return [{"zone": "exit", "itemId": worst[1] or None, "points": worst[2], "rule": "R4"}]
+
+
 def simulate(request: SimulationRequest) -> dict[str, Any]:
     dimensions = request.room.dimensions
     width_m, depth_m, height_m = map(_metres, (dimensions.widthCm, dimensions.depthCm, dimensions.heightCm))
@@ -236,6 +306,12 @@ def simulate(request: SimulationRequest) -> dict[str, Any]:
                 outcome = "stationary"
 
             hit_ids = sorted(contact_targets[item.id]) or None
+            hit_zones: list[str] = []
+            if outcome in {"tipped", "fell"}:
+                for zone in request.criticalZones:
+                    if zone.type != "exit" and _overlaps_zone(final_pose["footprint"], zone):
+                        if zone.type not in hit_zones:
+                            hit_zones.append(zone.type)
             if hit_ids:
                 global_impacted_ids.update(hit_ids)
                 collisions.update((item.id, target_id) for target_id in hit_ids)
@@ -244,7 +320,10 @@ def simulate(request: SimulationRequest) -> dict[str, Any]:
                 "type": item.type,
                 "anchored": item.anchored,
                 "outcome": outcome,
-                "before": item.before.model_dump(),
+                "before": {
+                    **item.before.model_dump(),
+                    "topZ": item.before.bottomZ + item.dimensions.heightCm,
+                },
                 "after": {
                     "footprint": final_pose["footprint"],
                     "bottomZ": final_pose["bottomZ"],
@@ -254,7 +333,11 @@ def simulate(request: SimulationRequest) -> dict[str, Any]:
                         "rotation": final_pose["rotation"],
                     },
                 },
-                "impact": {"hit": bool(hit_ids), "hitItemIds": hit_ids},
+                "impact": {
+                    "hit": bool(hit_zones),
+                    "hitItemIds": hit_ids,
+                    "hitZones": hit_zones,
+                },
                 "wasHit": bool(impacted_by[item.id]),
                 "hitByItemIds": sorted(impacted_by[item.id]) or None,
                 "track": tracks[item.id],
@@ -272,6 +355,7 @@ def simulate(request: SimulationRequest) -> dict[str, Any]:
                 "trackFps": round(1 / (FIXED_STEP * RECORD_EVERY)),
             },
             "items": output_items,
+            "criticalZones": [zone.model_dump(exclude_none=True) for zone in request.criticalZones],
             "impact": {"hit": bool(impacted), "itemIds": impacted},
             "collisions": [
                 {"sourceItemId": source_id, "targetItemId": target_id}

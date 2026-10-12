@@ -7,7 +7,7 @@
 - **`engine/`**: Bölgeler, sallama (t1), kayma, çarpma, skor, O/Ş ve seviye. Hepsi saf fonksiyon: model çağrısı yok, yan etki yok, her biri testli.
 - **`profiles/`**: `isg`, `ev`, `okul` ayar dosyaları. Profil davranışı sadece buradan değişir; kodda `if (profil === "ev")` yok.
 - **`api/`**: `POST /api/analyze`. Akışı birleştirir: `cem/ai` → `engine` → `cem/ai`.
-- **`simulation/`**: Python/FastAPI + PyBullet hizmeti; oda ve eşya girdilerini fizik simülasyonundan geçirir, eşya hareketlerini ve çarpışan eşya kimliklerini döndürür. Güncel kararlar: [motor-plan-v3.md](./motor-plan-v3.md).
+- **`simulation/`**: Python/FastAPI + PyBullet hizmeti; `criticalZones` geometrisiyle devrilen eşyaların risk bölgelerine çarpmasını hesaplar, fiziksel eşya çarpışma ID'lerini ayrı döndürür ve `cem/kayma_skoru` ile oda skorunu üretir. Eşya tipleri Cem'in 16 tiplik kataloğundan doğrulanır. Güncel sözleşme: [motor-plan-v3.md](./motor-plan-v3.md).
 
 ## Planlanan yapı
 
